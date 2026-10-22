@@ -24,6 +24,7 @@
 #define MU_ENGRAVING_ALTERATIONCHORD_H
 
 #include <array>
+#include <vector>
 #include "textbase.h"
 
 namespace mu::engraving {
@@ -93,6 +94,15 @@ public:
     bool deleteSelectedText() override;
     void editCopy(EditData& ed) override;
     void paste(const String& txt) override;
+    void insertText(const String& text) override;
+    void insertSym(SymId id) override;
+    EngravingItem* drop(Transaction& tx, EditData& ed) override;
+
+    struct SlotTextRun {
+        String text;
+        muse::draw::Font font;
+        PointF pos;
+    };
 
     int activeSlot() const { return m_activeSlot; }
     void setActiveSlot(int slot) { m_activeSlot = slot; }
@@ -107,6 +117,7 @@ public:
         RectF centralRect;
         std::array<RectF, SLOTS_COUNT> slotRect;
         double slotSize = 0.0;
+        std::array<std::vector<SlotTextRun>, SLOTS_COUNT> slotTextRuns;
     };
     DECLARE_LAYOUTDATA_METHODS(AlterationChord)
 

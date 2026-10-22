@@ -23,6 +23,8 @@
 #include "alterationchord.h"
 #include "segment.h"
 #include "score.h"
+#include "symbol.h"
+#include "engraving/iengravingfont.h"
 #include "../editing/editdata.h"
 #include "../editing/textedit.h"
 #include "../editing/transaction/undoablecommand.h"
@@ -407,31 +409,86 @@ void AlterationChord::paste(const String& txt)
     TextBase::paste(txt);
 }
 
+void AlterationChord::insertText(const String& text)
+{
+    if (m_activeSlot < 0 || m_activeSlot >= SLOTS_COUNT) {
+        TextBase::insertText(text);
+        return;
+    }
+    undoSetSlotText(m_activeSlot, m_slotSelected ? text : slotText(m_activeSlot) + text);
+    m_slotSelected = false;
+    score()->setUpdateAll();
+}
+
+void AlterationChord::insertSym(SymId id)
+{
+    if (m_activeSlot < 0 || m_activeSlot >= SLOTS_COUNT) {
+        TextBase::insertSym(id);
+        return;
+    }
+    insertText(score()->engravingFont()->toString(id));
+}
+
+EngravingItem* AlterationChord::drop(Transaction& tx, EditData& ed)
+{
+    if (m_activeSlot >= 0 && m_activeSlot < SLOTS_COUNT) {
+        EngravingItem* element = ed.dropElement;
+        if (element->isSymbol()) {
+            insertSym(toSymbol(element)->sym());
+        } else if (element->isFSymbol()) {
+            insertText(toFSymbol(element)->toString());
+        } else {
+            return TextBase::drop(tx, ed);
+        }
+        delete element;
+        return nullptr;
+    }
+    return TextBase::drop(tx, ed);
+}
+
 void AlterationChord::calculateSlotsLayout(LayoutData* ldata, double sp, const AlterationChord* item)
 {
     RectF cbb = ldata->shape().bbox();
-    double slotSize = 1.2 * sp;
+    double slotSize = 0.65 * sp;
+    const double padding = 0.05 * sp;
+    std::array<RectF, SLOTS_COUNT> textBounds;
 
-    if (item) {
-        muse::draw::Font slotFont = item->font();
-        slotFont.setPointSizeF(slotFont.pointSizeF() * 0.7);
-        muse::draw::FontMetrics fm(slotFont);
-        double pad = 0.2 * sp;
-
-        for (int i = 0; i < SLOTS_COUNT; ++i) {
-            const String& st = item->slotText(i);
-            if (!st.isEmpty()) {
-                RectF br = fm.boundingRect(st);
-                double dim = std::max(br.width(), br.height()) + pad;
-                slotSize = std::max(slotSize, dim);
-            }
+    for (int i = 0; i < SLOTS_COUNT; ++i) {
+        auto& runs = ldata->slotTextRuns[i];
+        runs.clear();
+        if (!item) {
+            continue;
         }
+        muse::draw::Font textFont = item->font();
+        textFont.setPointSizeF(textFont.pointSizeF() * 0.7);
+        muse::draw::Font symbolFont = textFont;
+        symbolFont.setFamily(item->style().styleSt(Sid::musicalTextFont), muse::draw::Font::Type::MusicSymbolText);
+        // SMuFL characters inserted by the symbol palette occupy the private-use area.
+        // Keep ordinary letters/digits in the user's font, including in mixed fields.
+        const String text = item->slotText(i);
+        for (size_t j = 0; j < text.size(); ++j) {
+            const Char c = text.at(j);
+            const bool symbol = c.unicode() >= 0xE000 && c.unicode() <= 0xF8FF;
+            const auto& font = symbol ? symbolFont : textFont;
+            if (runs.empty() || runs.back().font != font) {
+                runs.push_back({ String(), font, PointF() });
+            }
+            runs.back().text += c;
+        }
+        double x = 0.0;
+        for (auto& run : runs) {
+            muse::draw::FontMetrics fm(run.font);
+            run.pos = PointF(x, 0.0);
+            const RectF bounds = fm.boundingRect(run.text).translated(run.pos);
+            textBounds[i].unite(bounds);
+            x += fm.horizontalAdvance(run.text);
+        }
+        slotSize = std::max(slotSize, std::max(textBounds[i].width(), textBounds[i].height()) + padding);
     }
 
     ldata->slotSize = slotSize;
 
-    double padding = 0.2 * sp;
-    double centralW = std::max(2.0 * slotSize, cbb.width() + 2.0 * padding);
+    double centralW = std::max(0.1 * sp, cbb.width() + 2.0 * padding);
     double centralH = std::max(2.0 * slotSize, cbb.height() + 2.0 * padding);
 
     double cx = cbb.center().x();
@@ -439,24 +496,43 @@ void AlterationChord::calculateSlotsLayout(LayoutData* ldata, double sp, const A
     RectF centralRect(cx - centralW / 2.0, cy - centralH / 2.0, centralW, centralH);
     ldata->centralRect = centralRect;
 
+    // The two top/bottom fields may extend beyond a narrow central glyph. Move
+    // only the corners outward so all twelve hit targets stay disjoint.
+    const double leftCorner = std::min(centralRect.left(), cx - slotSize) - slotSize;
+    const double rightCorner = std::max(centralRect.right(), cx + slotSize);
+
     // Top row: 0=TopLeft, 1=Top1, 2=Top2, 3=TopRight (all square slotSize x slotSize)
-    ldata->slotRect[0] = RectF(centralRect.left() - slotSize, centralRect.top() - slotSize, slotSize, slotSize);
+    ldata->slotRect[0] = RectF(leftCorner, centralRect.top() - slotSize, slotSize, slotSize);
     ldata->slotRect[1] = RectF(centralRect.center().x() - slotSize, centralRect.top() - slotSize, slotSize, slotSize);
     ldata->slotRect[2] = RectF(centralRect.center().x(), centralRect.top() - slotSize, slotSize, slotSize);
-    ldata->slotRect[3] = RectF(centralRect.right(), centralRect.top() - slotSize, slotSize, slotSize);
+    ldata->slotRect[3] = RectF(rightCorner, centralRect.top() - slotSize, slotSize, slotSize);
 
     // Right column: 4=Right1, 5=Right2
     ldata->slotRect[4] = RectF(centralRect.right(), centralRect.center().y() - slotSize, slotSize, slotSize);
     ldata->slotRect[5] = RectF(centralRect.right(), centralRect.center().y(), slotSize, slotSize);
 
     // Bottom row: 6=BottomRight, 7=Bottom2, 8=Bottom1, 9=BottomLeft
-    ldata->slotRect[6] = RectF(centralRect.right(), centralRect.bottom(), slotSize, slotSize);
+    ldata->slotRect[6] = RectF(rightCorner, centralRect.bottom(), slotSize, slotSize);
     ldata->slotRect[7] = RectF(centralRect.center().x(), centralRect.bottom(), slotSize, slotSize);
     ldata->slotRect[8] = RectF(centralRect.center().x() - slotSize, centralRect.bottom(), slotSize, slotSize);
-    ldata->slotRect[9] = RectF(centralRect.left() - slotSize, centralRect.bottom(), slotSize, slotSize);
+    ldata->slotRect[9] = RectF(leftCorner, centralRect.bottom(), slotSize, slotSize);
 
     // Left column: 10=Left2, 11=Left1
     ldata->slotRect[10] = RectF(centralRect.left() - slotSize, centralRect.center().y(), slotSize, slotSize);
     ldata->slotRect[11] = RectF(centralRect.left() - slotSize, centralRect.center().y() - slotSize, slotSize, slotSize);
+
+    for (int i = 0; i < SLOTS_COUNT; ++i) {
+        const RectF& rect = ldata->slotRect[i];
+        PointF origin = rect.center() - textBounds[i].center();
+        // Side labels hug the central glyph instead of centering in a wide square.
+        if (i == 4 || i == 5) {
+            origin.setX(rect.left() - textBounds[i].left());
+        } else if (i == 10 || i == 11) {
+            origin.setX(rect.right() - textBounds[i].right());
+        }
+        for (auto& run : ldata->slotTextRuns[i]) {
+            run.pos += origin;
+        }
+    }
 }
 } // namespace mu::engraving

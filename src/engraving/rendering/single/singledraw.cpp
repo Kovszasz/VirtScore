@@ -2293,16 +2293,12 @@ void SingleDraw::draw(const AlterationChord* item, Painter* painter, const Paint
     painter->save();
     painter->rotate(item->textAngle());
 
-    muse::draw::Font slotFont = item->font();
-    slotFont.setPointSizeF(slotFont.pointSizeF() * 0.7);
     painter->setPen(item->textColor(opt));
-
-    for (int i = 0; i < AlterationChord::SLOTS_COUNT; ++i) {
-        const String& text = item->slotText(i);
-        if (!text.isEmpty()) {
+    for (const auto& runs : ldata->slotTextRuns) {
+        for (const auto& run : runs) {
             // drawText scales the painter font for the device DPI on each call.
-            painter->setFont(slotFont);
-            painter->drawText(ldata->slotRect[i], muse::draw::Alignment(muse::draw::AlignCenter), muse::draw::TextFlags(), text);
+            painter->setFont(run.font);
+            painter->drawText(run.pos, run.text);
         }
     }
 

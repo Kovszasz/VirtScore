@@ -31,6 +31,7 @@
 #include "engraving/dom/factory.h"
 #include "engraving/dom/masterscore.h"
 #include "engraving/dom/segment.h"
+#include "engraving/iengravingfont.h"
 #include "engraving/editing/editdata.h"
 #include "engraving/rendering/editmode/editmoderenderer.h"
 #include "engraving/rendering/iscorerenderer.h"
@@ -43,6 +44,7 @@ namespace {
 struct PaintedText {
     String text;
     double fontSize;
+    Font::Type fontType;
     Transform transform;
 };
 
@@ -61,7 +63,8 @@ void collectPaint(const DrawData& data, const DrawData::Item& item, PaintSummary
             result.pathTransforms.push_back(data.states.at(group.state).transform);
         }
         for (const DrawText& text : group.texts) {
-            result.texts.push_back({ text.text, data.states.at(group.state).font.pointSizeF(), data.states.at(group.state).transform });
+            const auto& state = data.states.at(group.state);
+            result.texts.push_back({ text.text, state.font.pointSizeF(), state.font.type(), state.transform });
         }
     }
     for (const DrawData::Item& child : item.chilren) {
@@ -168,4 +171,22 @@ TEST_F(Engraving_AlterationChordRenderingTests, RotatedOverlayTracksLabelsAndRes
         EXPECT_EQ(transform, result.texts[1].transform);
     }
     EXPECT_EQ(result.finalTransform, Transform());
+}
+
+TEST_F(Engraving_AlterationChordRenderingTests, MusicalSymbolAndDigitUseTheirRespectiveFonts)
+{
+    const String sharp = score->engravingFont()->toString(SymId::accidentalSharp);
+    chord->setSlotText(4, sharp + u"6");
+    layout();
+    const auto& runs = chord->ldata()->slotTextRuns[4];
+    ASSERT_EQ(runs.size(), 2u);
+    EXPECT_EQ(runs[0].text, sharp);
+    EXPECT_EQ(runs[1].text, u"6");
+    const PaintSummary result = paintAnnotation(chord.get(), false);
+    ASSERT_EQ(result.texts.size(), 3u);
+    EXPECT_EQ(result.texts[1].text, sharp);
+    EXPECT_EQ(result.texts[1].fontType, Font::Type::MusicSymbolText);
+    EXPECT_EQ(result.texts[2].text, u"6");
+    EXPECT_NE(result.texts[2].fontType, Font::Type::MusicSymbolText);
+    EXPECT_DOUBLE_EQ(result.texts[1].fontSize, result.texts[2].fontSize);
 }

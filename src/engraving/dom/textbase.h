@@ -331,7 +331,7 @@ public:
     String plainText() const;
     void resetFormatting();
 
-    void insertText(const String&);
+    virtual void insertText(const String&);
 
     double lineSpacing() const;
     double lineHeight() const;
@@ -531,7 +531,7 @@ protected:
 
     bool nudge(const EditData& ed);
 
-    void insertSym(SymId id);
+    virtual void insertSym(SymId id);
     void prepareFormat(const String& token, TextCursor& cursor);
     bool prepareFormat(const String& token, CharFormat& format);
 

@@ -34,6 +34,8 @@
 #include "engraving/dom/rest.h"
 #include "engraving/dom/segment.h"
 #include "engraving/dom/staff.h"
+#include "engraving/dom/symbol.h"
+#include "engraving/iengravingfont.h"
 #include "engraving/editing/editdata.h"
 #include "engraving/editing/textedit.h"
 #include "engraving/editing/transaction/transaction.h"
@@ -200,8 +202,8 @@ TEST_F(Engraving_AlterationChordTests, LayoutGeometry)
     double sp = 10.0;
     AlterationChord::calculateSlotsLayout(ldata, sp);
 
-    EXPECT_GE(ldata->slotSize, 1.2 * sp);
-    EXPECT_GE(ldata->centralRect.width(), 2.0 * ldata->slotSize);
+    EXPECT_GE(ldata->slotSize, 0.65 * sp);
+    EXPECT_GT(ldata->centralRect.width(), 0.0);
     EXPECT_GE(ldata->centralRect.height(), 2.0 * ldata->slotSize);
 
     // Verify 4 top slots have identical Y
@@ -227,10 +229,10 @@ TEST_F(Engraving_AlterationChordTests, LayoutGeometry)
     EXPECT_DOUBLE_EQ(ldata->slotRect[5].x(), ldata->centralRect.right());
 
     // Corner slots checks
-    EXPECT_DOUBLE_EQ(ldata->slotRect[0].x(), ldata->centralRect.left() - ldata->slotSize); // TopLeft
-    EXPECT_DOUBLE_EQ(ldata->slotRect[3].x(), ldata->centralRect.right()); // TopRight
-    EXPECT_DOUBLE_EQ(ldata->slotRect[6].x(), ldata->centralRect.right()); // BottomRight
-    EXPECT_DOUBLE_EQ(ldata->slotRect[9].x(), ldata->centralRect.left() - ldata->slotSize); // BottomLeft
+    EXPECT_LE(ldata->slotRect[0].right(), ldata->slotRect[1].left()); // TopLeft
+    EXPECT_GE(ldata->slotRect[3].left(), ldata->slotRect[2].right()); // TopRight
+    EXPECT_GE(ldata->slotRect[6].left(), ldata->slotRect[7].right()); // BottomRight
+    EXPECT_LE(ldata->slotRect[9].right(), ldata->slotRect[8].left()); // BottomLeft
 
     delete chord;
 }
@@ -550,7 +552,7 @@ TEST_F(Engraving_AlterationChordTests, LayoutRealisticWideGlyphsAndSpatium)
     EXPECT_LE(ldata->slotRect[1].right(), ldata->slotRect[2].left() + 0.001);
 
     // Slot size must scale with spatium
-    EXPECT_GE(ldata->slotSize, 1.2 * sp);
+    EXPECT_GE(ldata->slotSize, 0.65 * sp);
 
     // Bounding box must enclose both slot rects
     RectF bbox = ldata->bbox();
@@ -705,4 +707,102 @@ TEST_F(Engraving_AlterationChordTests, FullScoreSaveAndReopen)
     EXPECT_EQ(foundChord->slotText(7), u"#11");
 
     delete reloaded;
+}
+
+TEST_F(Engraving_AlterationChordTests, PaletteSymbolsAndCommittedTextTargetSelectedSlot)
+{
+    Measure* measure = Factory::createMeasure(m_score);
+    m_score->measures()->append(measure);
+    Segment* segment = measure->getSegment(SegmentType::ChordRest, Fraction(0, 1));
+    auto chord = Factory::createAlterationChord(segment);
+    chord->setTrack(0);
+    chord->setAutoplace(false);
+    EditData ed;
+    chord->startEdit(ed);
+    chord->setActiveSlot(4);
+    chord->setSlotText(4, u"old");
+    chord->setSlotSelected(true);
+    const String sharp = m_score->engravingFont()->toString(SymId::accidentalSharp);
+    ASSERT_FALSE(sharp.isEmpty());
+
+    m_score->startCmd(TranslatableString::untranslatable("Insert symbol"));
+    auto symbol = Factory::createSymbol(m_score->dummy());
+    symbol->setSym(SymId::accidentalSharp);
+    ed.dropElement = symbol;
+    EXPECT_TRUE(chord->acceptDrop(ed));
+    chord->drop(m_score->transactionManager()->currentOrDummyTransaction(), ed);
+    m_score->endCmd();
+    EXPECT_EQ(chord->slotText(4), sharp);
+    m_score->undoStack()->undo(nullptr);
+    EXPECT_EQ(chord->slotText(4), u"old");
+    m_score->undoStack()->redo();
+    EXPECT_EQ(chord->slotText(4), sharp);
+    EXPECT_EQ(chord->centralText(), u"I");
+    EXPECT_FALSE(chord->isSlotSelected());
+    EXPECT_EQ(chord->activeSlot(), 4);
+
+    TextBase* text = chord;
+    m_score->startCmd(TranslatableString::untranslatable("Append text"));
+    text->insertText(u"6");
+    m_score->endCmd();
+    EXPECT_EQ(chord->slotText(4), sharp + u"6");
+    m_score->undoStack()->undo(nullptr);
+    EXPECT_EQ(chord->slotText(4), sharp);
+    m_score->undoStack()->redo();
+    EXPECT_EQ(chord->slotText(4), sharp + u"6");
+
+    chord->setSlotSelected(true);
+    m_score->startCmd(TranslatableString::untranslatable("Insert Unicode symbol"));
+    auto unicode = Factory::createFSymbol(m_score->dummy());
+    unicode->setCode(0x266D);
+    ed.dropElement = unicode;
+    EXPECT_TRUE(chord->acceptDrop(ed));
+    chord->drop(m_score->transactionManager()->currentOrDummyTransaction(), ed);
+    m_score->endCmd();
+    EXPECT_EQ(chord->slotText(4), u"♭");
+    EXPECT_EQ(chord->centralText(), u"I");
+
+    chord->setSlotText(5, sharp + u"6");
+    chord->endEdit(ed);
+    auto restored = toAlterationChord(ScoreRW::writeReadElement(chord));
+    ASSERT_NE(restored, nullptr);
+    EXPECT_EQ(restored->slotText(4), u"♭");
+    EXPECT_EQ(restored->slotText(5), sharp + u"6");
+    delete restored;
+    delete chord;
+}
+
+TEST_F(Engraving_AlterationChordTests, CompactSideLabelsKeepSelectableDisjointSlots)
+{
+    Measure* measure = Factory::createMeasure(m_score);
+    m_score->measures()->append(measure);
+    Segment* segment = measure->getSegment(SegmentType::ChordRest, Fraction(0, 1));
+    auto chord = Factory::createAlterationChord(segment);
+    chord->setTrack(0);
+    chord->setAutoplace(false);
+    chord->setCentralText(u"V");
+    chord->setAutoplace(false);
+    chord->setSlotText(4, u"6");
+    chord->setSlotText(5, u"5");
+    m_score->renderer()->layoutItem(static_cast<TextBase*>(chord));
+    const auto* ldata = chord->ldata();
+    ASSERT_FALSE(ldata->slotTextRuns[4].empty());
+    const auto& run = ldata->slotTextRuns[4].front();
+    const RectF label = muse::draw::FontMetrics(run.font).boundingRect(run.text).translated(run.pos);
+    const RectF central = ldata->blocks.front().boundingRect();
+    EXPECT_NEAR(label.left() - central.right(), 0.05 * chord->spatium(), 0.001);
+    EditData ed;
+    chord->startEdit(ed);
+    chord->setPos(10.0, 20.0);
+    for (int i = 0; i < AlterationChord::SLOTS_COUNT; ++i) {
+        ed.startMove = chord->canvasPos() + ldata->slotRect[i].center();
+        EXPECT_TRUE(chord->mousePress(ed));
+        EXPECT_EQ(chord->activeSlot(), i);
+        for (int j = i + 1; j < AlterationChord::SLOTS_COUNT; ++j) {
+            const RectF overlap = ldata->slotRect[i].intersected(ldata->slotRect[j]);
+            EXPECT_LE(overlap.width() * overlap.height(), 0.001);
+        }
+    }
+    chord->endEdit(ed);
+    delete chord;
 }
