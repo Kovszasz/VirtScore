@@ -43,6 +43,10 @@ build's installer remains downloadable as a workflow artifact.
 
 CI uses `windows-2025`, MSVC 2022 x64, Ninja/CMake/CPack, Python, Qt 6.11.2 for
 MSVC 2022, and WiX 3.14.1 (WiX 3 is required by the existing installer templates).
+The workflow reuses preinstalled WiX 3.14 tools when both `candle.exe` and
+`light.exe` exist. Otherwise it installs Chocolatey package
+`wixtoolset` version `3.14.1.20250415`; the final digits are a package revision,
+not a different WiX toolchain version.
 Qt modules are qt5compat, qtnetworkauth, qtshadertools, and qtwebsockets, alongside
 base/declarative/svg/tools/translations archives. The workflow uses the same
 `aqt` archive workaround as the devcontainer. Qt downloads, Python packages,

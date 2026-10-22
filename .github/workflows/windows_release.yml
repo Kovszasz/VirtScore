@@ -59,12 +59,17 @@ jobs:
         with:
           arch: x64
 
-      - name: Install WiX 3
+      - name: Ensure WiX 3 tools
         run: |
-          choco install wixtoolset --version=3.14.1 --yes --no-progress
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $wixBin = Join-Path ${env:ProgramFiles(x86)} 'WiX Toolset v3.14\bin'
-          if (!(Test-Path "$wixBin\candle.exe")) { throw 'WiX 3 tools missing' }
+          # Hosted runners may already include a newer Chocolatey package revision.
+          if (!(Test-Path "$wixBin\candle.exe") -or !(Test-Path "$wixBin\light.exe")) {
+            choco install wixtoolset --version=3.14.1.20250415 --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          if (!(Test-Path "$wixBin\candle.exe") -or !(Test-Path "$wixBin\light.exe")) {
+            throw 'WiX 3.14 candle.exe and light.exe are required'
+          }
           $wixBin >> $env:GITHUB_PATH
 
       - name: Generate English translations
