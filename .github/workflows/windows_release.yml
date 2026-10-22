@@ -3,6 +3,7 @@ name: Windows release
 on:
   push:
     branches: ['**']
+    tags: ['**']
   workflow_dispatch:
 
 permissions:
@@ -99,7 +100,10 @@ jobs:
 
       - name: Package MSI and checksum
         run: |
-          cpack --config build/windows-release/CPackConfig.cmake -G WIX -B build.artifacts
+          # Packaging defaults to WiX 3.11; this runner installs WiX 3.14.
+          $wixRoot = Join-Path ${env:ProgramFiles(x86)} 'WiX Toolset v3.14'
+          cpack --config build/windows-release/CPackConfig.cmake -G WIX -B build.artifacts `
+            "-DCPACK_WIX_ROOT=$wixRoot"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $installers = @(Get-ChildItem build.artifacts -Filter *.msi)
           if ($installers.Count -ne 1) { throw 'Expected exactly one MSI installer' }
@@ -143,7 +147,8 @@ jobs:
           retention-days: 30
 
   release:
-    name: Publish downloadable prerelease
+    name: Publish tagged Windows installer
+    if: startsWith(github.ref, 'refs/tags/')
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -155,12 +160,12 @@ jobs:
           name: VirtScore-windows-x64
           path: release
 
-      - name: Create GitHub prerelease
+      - name: Publish installer to GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_COMMIT: ${{ github.sha }}
-          RELEASE_TAG: windows-build-${{ github.run_number }}-${{ github.run_attempt }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           cat > release-notes.md <<'NOTES'
           Windows x64 build of VirtScore. Download the `.msi` file and open it to install.
@@ -169,7 +174,12 @@ jobs:
           The application and installer currently retain MuseScore Studio branding.
           Verify the download against `SHA256SUMS.txt` if needed.
           NOTES
-          gh release create "$RELEASE_TAG" release/*.msi release/SHA256SUMS.txt \
-            --target "$RELEASE_COMMIT" \
-            --title "VirtScore Windows build ${GITHUB_RUN_NUMBER}" \
-            --notes-file release-notes.md --prerelease --latest=false
+          # Preserve an existing release's notes and status. Reruns replace assets.
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" release/*.msi release/SHA256SUMS.txt --clobber
+          else
+            gh release create "$RELEASE_TAG" release/*.msi release/SHA256SUMS.txt \
+              --verify-tag --target "$RELEASE_COMMIT" \
+              --title "VirtScore $RELEASE_TAG" \
+              --notes-file release-notes.md --prerelease --latest=false
+          fi

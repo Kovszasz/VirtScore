@@ -164,6 +164,7 @@ class StaffLines;
 class StaffState;
 class StaffText;
 class StaveSharingLabel;
+class AlterationChord;
 class StaffTextBase;
 class StaffTypeChange;
 class StaffVisibilityIndicator;
@@ -487,6 +488,7 @@ public:
     CONVERT(MMRestRange,   MMREST_RANGE)
     CONVERT(StaffText,     STAFF_TEXT)
     CONVERT(StaveSharingLabel, STAVE_SHARING_LABEL)
+    CONVERT(AlterationChord, ALTERATION_CHORD)
     CONVERT(SystemText,    SYSTEM_TEXT)
     CONVERT(SoundFlag,     SOUND_FLAG)
     CONVERT(PlayCountText, PLAY_COUNT_TEXT)
@@ -727,6 +729,7 @@ CONVERT(Harmony)
 CONVERT(Jump)
 CONVERT(StaffText)
 CONVERT(StaveSharingLabel);
+CONVERT(AlterationChord)
 CONVERT(StaffTextBase)
 CONVERT(TextBase)
 CONVERT(TextLineBase)

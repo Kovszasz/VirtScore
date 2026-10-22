@@ -193,6 +193,9 @@ public:
     static StaveSharingLabel* createStaveSharingLabel(DummyParentOr<Segment> parent,
                                                       TextStyleType textStyleType = TextStyleType::STAVE_SHARING,
                                                       bool isAccessibleEnabled = true);
+    static AlterationChord* createAlterationChord(DummyParentOr<Segment> parent,
+                                                  TextStyleType textStyleType = TextStyleType::STAFF,
+                                                  bool isAccessibleEnabled = true);
 
     static SoundFlag* createSoundFlag(DummyParentOr<EngravingItem> parent, bool isAccessibleEnabled = true);
 

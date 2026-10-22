@@ -1845,6 +1845,13 @@ static const std::vector<CommandInfo> s_commandInfos = {
         Decoration()
     },
     CommandInfo{
+        ADD_ALTERATION_CHORD_COMMAND,
+        TranslatableString("action", "Alteration &chord"),
+        TranslatableString("action", "Add text: alteration chord"),
+        InputSchema(),
+        Decoration()
+    },
+    CommandInfo{
         ADD_TEMPO_COMMAND,
         TranslatableString("action", "Tempo &marking"),
         TranslatableString("action", "Add text: tempo marking"),

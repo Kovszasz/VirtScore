@@ -711,6 +711,7 @@ MenuItemList AppMenuModel::makeTextItems()
         makeMenuItem(ADD_NASHVILLE_NUMBER_TEXT_COMMAND),
         makeMenuItem(ADD_LYRICS_COMMAND),
         makeMenuItem(ADD_FIGURED_BASS_COMMAND),
+        makeMenuItem(ADD_ALTERATION_CHORD_COMMAND),
         makeMenuItem(ADD_TEMPO_COMMAND)
     };
 

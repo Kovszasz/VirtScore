@@ -426,6 +426,9 @@ void TLayout::layoutItem(EngravingItem* item, LayoutContext& ctx)
     case ElementType::STAFF_TEXT:
         layoutStaffText(item_cast<const StaffText*>(item), static_cast<StaffText::LayoutData*>(ldata));
         break;
+    case ElementType::ALTERATION_CHORD:
+        layoutAlterationChord(item_cast<const AlterationChord*>(item), static_cast<AlterationChord::LayoutData*>(ldata));
+        break;
     case ElementType::STAVE_SHARING_LABEL:
         layoutStaveSharingLabel(item_cast<const StaveSharingLabel*>(item), static_cast<StaffText::LayoutData*>(ldata));
         break;
@@ -5278,6 +5281,28 @@ void TLayout::layoutStaffText(const StaffText* item, StaffText::LayoutData* ldat
 
     if (SoundFlag* flag = item->soundFlag()) {
         layoutSoundFlag(flag, flag->mutldata());
+    }
+}
+
+void TLayout::layoutAlterationChord(const AlterationChord* item, AlterationChord::LayoutData* ldata)
+{
+    LAYOUT_CALL_ITEM(item);
+    TextLayout::layoutBaseTextBase(item, ldata);
+
+    AlterationChord::calculateSlotsLayout(ldata, item->spatium(), item);
+
+    Shape s = ldata->shape();
+    s.add(ldata->centralRect);
+    for (int i = 0; i < AlterationChord::SLOTS_COUNT; ++i) {
+        if (!item->slotText(i).isEmpty()) {
+            s.add(ldata->slotRect[i]);
+        }
+    }
+    ldata->setShape(s);
+    ldata->setBbox(s.bbox());
+
+    if (item->autoplace()) {
+        Autoplace::autoplaceSegmentElement(item, ldata);
     }
 }
 

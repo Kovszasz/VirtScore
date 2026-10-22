@@ -288,6 +288,8 @@ set(DOM_SRC
     ${CMAKE_CURRENT_LIST_DIR}/stafflabel.h
     ${CMAKE_CURRENT_LIST_DIR}/staffstate.cpp
     ${CMAKE_CURRENT_LIST_DIR}/staffstate.h
+    ${CMAKE_CURRENT_LIST_DIR}/alterationchord.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/alterationchord.h
     ${CMAKE_CURRENT_LIST_DIR}/stafftext.cpp
     ${CMAKE_CURRENT_LIST_DIR}/stafftext.h
     ${CMAKE_CURRENT_LIST_DIR}/stafftextbase.cpp

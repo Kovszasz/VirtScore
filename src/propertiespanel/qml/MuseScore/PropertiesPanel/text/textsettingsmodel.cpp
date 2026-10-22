@@ -637,6 +637,12 @@ void TextSettingsModel::updateFramePropertiesAvailability()
 void TextSettingsModel::updateStaffPropertiesAvailability()
 {
     bool isAvailable = static_cast<TextStyleType>(m_textType->value().toInt()) == TextStyleType::STAFF;
+    for (const EngravingItem* item : m_elementList) {
+        if (item->isAlterationChord()) {
+            isAvailable = false;
+            break;
+        }
+    }
 
     setAreStaffTextPropertiesAvailable(isAvailable && !m_textType->isUndefined());
 }

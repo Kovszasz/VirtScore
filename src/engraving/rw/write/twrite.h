@@ -32,6 +32,7 @@ class ElementList;
 
 class Accidental;
 class ActionIcon;
+class AlterationChord;
 class Ambitus;
 class Arpeggio;
 class Articulation;
@@ -280,6 +281,7 @@ public:
     static void write(const Staff* item, XmlWriter& xml, WriteContext& ctx);
     static void write(const StaffState* item, XmlWriter& xml, WriteContext& ctx);
     static void write(const StaffText* item, XmlWriter& xml, WriteContext& ctx);
+    static void write(const AlterationChord* item, XmlWriter& xml, WriteContext& ctx);
     static void write(const StaveSharingLabel* item, XmlWriter& xml, WriteContext& ctx);
     static void write(const StaffType* item, XmlWriter& xml, WriteContext& ctx);
     static void write(const StaffTypeChange* item, XmlWriter& xml, WriteContext& ctx);

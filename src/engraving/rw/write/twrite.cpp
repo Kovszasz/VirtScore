@@ -130,6 +130,7 @@
 #include "dom/spacer.h"
 #include "dom/staffstate.h"
 #include "dom/stafftext.h"
+#include "dom/alterationchord.h"
 #include "dom/stafftype.h"
 #include "dom/stafftypechange.h"
 #include "dom/stavesharinglabel.h"
@@ -325,6 +326,8 @@ void TWrite::writeItem(const EngravingItem* item, XmlWriter& xml, WriteContext& 
     case ElementType::STAFF_STATE:  write(item_cast<const StaffState*>(item), xml, ctx);
         break;
     case ElementType::STAFF_TEXT:   write(item_cast<const StaffText*>(item), xml, ctx);
+        break;
+    case ElementType::ALTERATION_CHORD: write(item_cast<const AlterationChord*>(item), xml, ctx);
         break;
     case ElementType::STAVE_SHARING_LABEL:   write(item_cast<const StaveSharingLabel*>(item), xml, ctx);
         break;
@@ -3003,6 +3006,26 @@ void TWrite::write(const StaffText* item, XmlWriter& xml, WriteContext& ctx)
 
     if (const SoundFlag* flag = item->soundFlag()) {
         writeItem(flag, xml, ctx);
+    }
+
+    xml.endElement();
+}
+
+void TWrite::write(const AlterationChord* item, XmlWriter& xml, WriteContext& ctx)
+{
+    if (!ctx.canWrite(item)) {
+        return;
+    }
+
+    xml.startElement(item);
+    writeProperties(static_cast<const TextBase*>(item), xml, ctx, true);
+
+    for (int i = 0; i < AlterationChord::SLOTS_COUNT; ++i) {
+        const String& s = item->slotText(i);
+        if (!s.isEmpty()) {
+            std::string slotTag = "slot" + std::to_string(i);
+            xml.tag(slotTag.c_str(), s);
+        }
     }
 
     xml.endElement();

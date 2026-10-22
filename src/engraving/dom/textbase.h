@@ -363,12 +363,12 @@ public:
     virtual void endDrag(EditData&) override;
     void movePosition(TextCursor::MoveOperation);
 
-    bool mousePress(EditData& ed);
+    virtual bool mousePress(EditData& ed);
     void dragTo(EditData& ed);
 
-    bool deleteSelectedText();
+    virtual bool deleteSelectedText();
 
-    void selectAll();
+    virtual void selectAll();
     void select(SelectTextType);
     bool isPrimed() const { return m_primed; }
     void setPrimed(bool primed) { m_primed = primed; }

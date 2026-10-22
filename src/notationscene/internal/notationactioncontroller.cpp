@@ -333,6 +333,7 @@ void NotationActionController::init()
     registerCommand(ADD_LYRICS_COMMAND, [this]() { addText(TextStyleType::LYRICS_ODD); });
     registerCommand(ADD_TEMPO_COMMAND, [this]() { addText(TextStyleType::TEMPO); });
     registerCommand(ADD_FIGURED_BASS_COMMAND, [this]() { addFiguredBass(); });
+    registerCommand(ADD_ALTERATION_CHORD_COMMAND, [this]() { addAlterationChord(); });
 
     // add grace notes commands
     registerCommand(ADD_ACCIACCATURA_COMMAND, &Interaction::addGraceNotesToSelectedNotes, GraceNoteType::ACCIACCATURA);
@@ -1989,6 +1990,18 @@ void NotationActionController::addFiguredBass()
     }
 
     interaction->addFiguredBass();
+}
+
+void NotationActionController::addAlterationChord()
+{
+    TRACEFUNC;
+
+    auto interaction = currentNotationInteraction();
+    if (!interaction) {
+        return;
+    }
+
+    interaction->addAlterationChord();
 }
 
 void NotationActionController::addGuitarBend(GuitarBendType bendType)

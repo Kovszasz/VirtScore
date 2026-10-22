@@ -115,6 +115,7 @@
 #include "../../dom/staff.h"
 #include "../../dom/staffstate.h"
 #include "../../dom/stafftext.h"
+#include "../../dom/alterationchord.h"
 #include "../../dom/stafftextbase.h"
 #include "../../dom/stafftype.h"
 #include "../../dom/stafftypechange.h"
@@ -302,6 +303,8 @@ void TRead::readItem(EngravingItem* item, XmlReader& xml, ReadContext& ctx)
     case ElementType::STAFF_STATE: read(item_cast<StaffState*>(item), xml, ctx);
         break;
     case ElementType::STAFF_TEXT: read(item_cast<StaffText*>(item), xml, ctx);
+        break;
+    case ElementType::ALTERATION_CHORD: read(item_cast<AlterationChord*>(item), xml, ctx);
         break;
     case ElementType::STAVE_SHARING_LABEL: read(item_cast<StaveSharingLabel*>(item), xml, ctx);
         break;
@@ -727,6 +730,28 @@ void TRead::read(StaffText* t, XmlReader& xml, ReadContext& ctx)
             read(flag, xml, ctx);
             t->setSoundFlag(flag);
         } else if (!readProperties(static_cast<StaffTextBase*>(t), xml, ctx)) {
+            xml.unknown();
+        }
+    }
+}
+
+void TRead::read(AlterationChord* t, XmlReader& xml, ReadContext& ctx)
+{
+    while (xml.readNextStartElement()) {
+        const AsciiStringView tag(xml.name());
+        bool handledSlot = false;
+        for (int i = 0; i < AlterationChord::SLOTS_COUNT; ++i) {
+            std::string slotTag = "slot" + std::to_string(i);
+            if (tag == slotTag) {
+                t->setSlotText(i, xml.readText());
+                handledSlot = true;
+                break;
+            }
+        }
+        if (handledSlot) {
+            continue;
+        }
+        if (!readProperties(static_cast<TextBase*>(t), xml, ctx)) {
             xml.unknown();
         }
     }

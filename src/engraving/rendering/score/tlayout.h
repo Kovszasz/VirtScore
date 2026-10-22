@@ -26,6 +26,7 @@
 
 #include "../../dom/accidental.h"
 #include "../../dom/actionicon.h"
+#include "../../dom/alterationchord.h"
 #include "../../dom/ambitus.h"
 #include "../../dom/arpeggio.h"
 #include "../../dom/articulation.h"
@@ -327,6 +328,7 @@ public:
     static void layoutForWidth(StaffLines* item, double w, LayoutContext& ctx);
     static void layoutStaffState(const StaffState* item, StaffState::LayoutData* ldata);
     static void layoutStaffText(const StaffText* item, StaffText::LayoutData* ldata);
+    static void layoutAlterationChord(const AlterationChord* item, AlterationChord::LayoutData* ldata);
     static void layoutStaveSharingLabel(const StaveSharingLabel* item, StaveSharingLabel::LayoutData* ldata);
     static void layoutStaffTypeChange(const StaffTypeChange* item, StaffTypeChange::LayoutData* ldata, const LayoutConfiguration& conf);
     static void layoutStem(const Stem* item, Stem::LayoutData* ldata, const LayoutConfiguration& conf);

@@ -98,6 +98,7 @@ class WriteScoreHook;
 }
 
 namespace mu::engraving {
+class AlterationChord;
 class Articulation;
 class Box;
 class Bracket;
@@ -703,6 +704,7 @@ public:
     int fileDivision() const { return m_fileDivision; }   ///< division of current loading *.msc file
     void splitStaff(staff_idx_t staffIdx, int splitPoint);
     FiguredBass* addFiguredBass();
+    AlterationChord* addAlterationChord(EngravingItem* destinationElement = nullptr);
     void expandVoice(Segment* s, track_idx_t track);
     void expandVoice();
 

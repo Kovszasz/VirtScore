@@ -177,6 +177,7 @@ private:
     void addDynamic();
     void addImage();
     void addFiguredBass();
+    void addAlterationChord();
     void addGuitarBend(GuitarBendType bendType);
     void addFretboardDiagram();
 
