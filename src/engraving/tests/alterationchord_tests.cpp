@@ -806,3 +806,97 @@ TEST_F(Engraving_AlterationChordTests, CompactSideLabelsKeepSelectableDisjointSl
     chord->endEdit(ed);
     delete chord;
 }
+
+TEST_F(Engraving_AlterationChordTests, MultiCharacterSlotInputWithAltGrAndShift)
+{
+    auto chord = Factory::createAlterationChord(m_score->dummy());
+    chord->setActiveSlot(4);
+    chord->setSlotSelected(true);
+    EditData ed;
+    ed.key = Key_3;
+    ed.s = u"3";
+    ASSERT_TRUE(chord->isEditAllowed(ed));
+    ASSERT_TRUE(chord->edit(ed));
+    EXPECT_EQ(chord->slotText(4), u"3");
+
+    // AltGr+X produces # on some Windows keyboard layouts, including Hungarian.
+    // Its key code must not be mistaken for the Ctrl+X cut shortcut.
+    ed.key = Key_X;
+    ed.modifiers = ControlModifier | AltModifier;
+    ed.s = u"#";
+    ASSERT_TRUE(chord->isEditAllowed(ed));
+    ASSERT_TRUE(chord->edit(ed));
+    EXPECT_EQ(chord->slotText(4), u"3#");
+
+    ed.modifiers = NoModifier;
+    ed.key = Key_B;
+    ed.s = u"b";
+    ASSERT_TRUE(chord->edit(ed));
+    EXPECT_EQ(chord->slotText(4), u"3#b");
+    ed.modifiers = ShiftModifier;
+    ed.s = u"B";
+    ASSERT_TRUE(chord->edit(ed));
+    EXPECT_EQ(chord->slotText(4), u"3#bB");
+
+    ed.modifiers = ControlModifier;
+    ed.s = u"x";
+    ed.key = Key_X;
+    EXPECT_FALSE(chord->isEditAllowed(ed));
+    ed.modifiers = ControlModifier | AltModifier;
+    ed.s = String(Char(0x18));
+    EXPECT_FALSE(chord->isEditAllowed(ed));
+    EXPECT_EQ(chord->centralText(), u"I");
+    delete chord;
+}
+
+TEST_F(Engraving_AlterationChordTests, PaletteModifiersAppendToNumberAndInsertIntoCentralText)
+{
+    Measure* measure = Factory::createMeasure(m_score);
+    m_score->measures()->append(measure);
+    Segment* segment = measure->getSegment(SegmentType::ChordRest, Fraction(0, 1));
+    auto chord = Factory::createAlterationChord(segment);
+    chord->setTrack(0);
+    chord->setAutoplace(false);
+    EditData ed;
+    chord->startEdit(ed);
+    chord->setActiveSlot(4);
+    chord->setSlotText(4, u"3");
+    // The toolbar clears the focus-time whole-field selection before dropping.
+    chord->setSlotSelected(false);
+    const SymId symbols[] = { SymId::accidentalSharp, SymId::accidentalFlat, SymId::articTenutoAbove };
+    String expected = u"3";
+    for (SymId id : symbols) {
+        m_score->startCmd(TranslatableString::untranslatable("Append toolbar symbol"));
+        auto symbol = Factory::createSymbol(m_score->dummy());
+        symbol->setSym(id);
+        ed.dropElement = symbol;
+        EXPECT_TRUE(chord->acceptDrop(ed));
+        chord->drop(m_score->transactionManager()->currentOrDummyTransaction(), ed);
+        m_score->endCmd();
+        expected += m_score->engravingFont()->toString(id);
+        EXPECT_EQ(chord->slotText(4), expected);
+        EXPECT_EQ(chord->centralText(), u"I");
+    }
+    m_score->undoStack()->undo(nullptr);
+    EXPECT_EQ(chord->slotText(4), u"3" + m_score->engravingFont()->toString(symbols[0])
+              + m_score->engravingFont()->toString(symbols[1]));
+    m_score->undoStack()->redo();
+    EXPECT_EQ(chord->slotText(4), expected);
+
+    chord->setActiveSlot(AlterationChord::FOCUS_CENTRAL);
+    chord->selectAll();
+    m_score->startCmd(TranslatableString::untranslatable("Central toolbar symbol"));
+    auto symbol = Factory::createSymbol(m_score->dummy());
+    symbol->setSym(SymId::accidentalFlat);
+    ed.dropElement = symbol;
+    chord->drop(m_score->transactionManager()->currentOrDummyTransaction(), ed);
+    m_score->endCmd();
+    EXPECT_EQ(chord->centralText(), m_score->engravingFont()->toString(SymId::accidentalFlat));
+    EXPECT_EQ(chord->slotText(4), expected);
+    chord->endEdit(ed);
+    auto restored = toAlterationChord(ScoreRW::writeReadElement(chord));
+    EXPECT_EQ(restored->slotText(4), expected);
+    EXPECT_EQ(restored->centralText(), chord->centralText());
+    delete restored;
+    delete chord;
+}

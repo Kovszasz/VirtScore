@@ -43,8 +43,13 @@ Normal annotation placement and dragging apply.
 Surrounding fields sit close to the central glyph, with a small gap of 0.05
 staff spaces at the sides. Empty squares are smaller, and corner targets move
 outward when needed so all twelve fields stay individually selectable. The
-special-character toolbar and Unicode/symbol palette insert into the selected
-field, replacing selected field text or appending after it. Musical glyphs use
+Unicode/symbol palette inserts into the selected field, replacing selected
+field text or appending after it. While editing an alteration chord, the top
+note-input toolbar's accidental and articulation buttons insert their glyphs
+into the active field instead of applying them to notes. In a side field these
+buttons append to the existing number, so `3` followed by the sharp button yields
+`3♯`. Keyboard text also supports multiple characters, including `3#`, `5b`,
+and printable AltGr combinations. Musical glyphs use
 the score's musical text font; letters and numbers keep the annotation text font.
 
 

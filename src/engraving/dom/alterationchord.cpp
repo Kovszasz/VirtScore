@@ -256,9 +256,11 @@ bool AlterationChord::isEditAllowed(EditData& ed) const
     if (m_activeSlot >= 0 && m_activeSlot < SLOTS_COUNT) {
         bool ctrlPressed = ed.modifiers & ControlModifier;
         bool shiftPressed = ed.modifiers & ShiftModifier;
+        const bool altGrText = ctrlPressed && (ed.modifiers & AltModifier) && !ed.s.isEmpty()
+                               && ed.s.front().unicode() >= 0x20 && ed.s.front().unicode() != 0x7F;
 
         // Normal Ctrl/Cmd+Z, Ctrl+Y, Ctrl+C, Ctrl+X, Ctrl+V must bubble to application level
-        if (ctrlPressed && !shiftPressed) {
+        if (ctrlPressed && !shiftPressed && !altGrText) {
             if (ed.key == Key_Z || ed.key == Key_Y || ed.key == Key_C || ed.key == Key_X || ed.key == Key_V) {
                 return false;
             }
@@ -272,7 +274,7 @@ bool AlterationChord::isEditAllowed(EditData& ed) const
             return true;
         }
 
-        if (!ed.s.isEmpty() && !ctrlPressed) {
+        if (!ed.s.isEmpty() && (!ctrlPressed || altGrText)) {
             return true;
         }
 
@@ -303,8 +305,10 @@ bool AlterationChord::edit(EditData& ed)
     if (m_activeSlot >= 0 && m_activeSlot < SLOTS_COUNT) {
         bool ctrlPressed = ed.modifiers & ControlModifier;
         bool shiftPressed = ed.modifiers & ShiftModifier;
+        const bool altGrText = ctrlPressed && (ed.modifiers & AltModifier) && !ed.s.isEmpty()
+                               && ed.s.front().unicode() >= 0x20 && ed.s.front().unicode() != 0x7F;
 
-        if (ctrlPressed && !shiftPressed && ed.key == Key_A) {
+        if (ctrlPressed && !shiftPressed && !altGrText && ed.key == Key_A) {
             m_slotSelected = true;
             score()->setUpdateAll();
             return true;
@@ -337,7 +341,7 @@ bool AlterationChord::edit(EditData& ed)
             return true;
         }
 
-        if (!ed.s.isEmpty() && !ctrlPressed && ed.key != Key_Escape && ed.key != Key_Return && ed.key != Key_Enter) {
+        if (!ed.s.isEmpty() && (!ctrlPressed || altGrText) && ed.key != Key_Escape && ed.key != Key_Return && ed.key != Key_Enter) {
             if (m_slotSelected) {
                 undoSetSlotText(m_activeSlot, ed.s);
                 m_slotSelected = false;
