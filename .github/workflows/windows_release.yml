@@ -118,29 +118,6 @@ jobs:
           $hash = (Get-FileHash $destination -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $name" | Set-Content build.artifacts/SHA256SUMS.txt -Encoding ascii
 
-      - name: Verify MSI installation and executable startup
-        run: |
-          $msi = (Get-ChildItem build.artifacts -Filter *.msi).FullName
-          $installDir = Join-Path $env:RUNNER_TEMP 'VirtScore-installed'
-          $log = Join-Path $env:RUNNER_TEMP 'VirtScore-install.log'
-          $arguments = "/i `"$msi`" /qn /norestart INSTALL_ROOT=`"$installDir`" /L*v `"$log`""
-          $installer = Start-Process msiexec.exe -ArgumentList $arguments -Wait -PassThru
-          if ($installer.ExitCode -notin @(0, 3010)) {
-            Get-Content $log -Tail 100
-            throw "MSI installation failed: $($installer.ExitCode)"
-          }
-          $exe = Get-ChildItem "$installDir/bin" -Filter 'MuseScoreStudio*.exe' | Select-Object -First 1
-          if (!$exe) { throw 'Installed application executable missing' }
-          # Ensure startup uses packaged Qt DLLs rather than the CI Qt installation.
-          $env:PATH = ($env:PATH -split ';' | Where-Object { $_ -notlike "$env:QT_ROOT_DIR*" }) -join ';'
-          $env:QT_QPA_PLATFORM = 'offscreen'
-          $app = Start-Process $exe.FullName -ArgumentList '--version' -PassThru -NoNewWindow
-          if (!$app.WaitForExit(60000)) {
-            $app.Kill()
-            throw 'Installed application startup timed out'
-          }
-          if ($app.ExitCode -ne 0) { throw "Application exited with $($app.ExitCode)" }
-
       - name: Upload installer
         uses: actions/upload-artifact@v7
         with:
@@ -151,10 +128,74 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  verify:
+    name: Verify installed Windows application
+    needs: build
+    runs-on: windows-2025
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Download installer
+        uses: actions/download-artifact@v8
+        with:
+          name: VirtScore-windows-x64
+          path: build.artifacts
+
+      - name: Verify MSI installation and executable startup
+        run: |
+          $msi = (Get-ChildItem build.artifacts -Filter *.msi).FullName
+          $installDir = Join-Path $env:RUNNER_TEMP 'VirtScore-installed'
+          $log = Join-Path $env:GITHUB_WORKSPACE 'build.artifacts/VirtScore-install.log'
+          $arguments = "/i `"$msi`" /qn /norestart INSTALL_ROOT=`"$installDir`" /L*v `"$log`""
+          $installer = Start-Process msiexec.exe -ArgumentList $arguments -Wait -PassThru
+          if ($installer.ExitCode -notin @(0, 3010)) {
+            Get-Content $log -Tail 100
+            throw "MSI installation failed: $($installer.ExitCode)"
+          }
+          $exe = Get-ChildItem "$installDir/bin" -Filter 'MuseScoreStudio*.exe' | Select-Object -First 1
+          if (!$exe) { throw 'Installed application executable missing' }
+          # This fresh runner has no build-time Qt installation in PATH.
+          $env:QT_QPA_PLATFORM = 'offscreen'
+          # Qt otherwise may display --version in a native Windows message box.
+          # https://doc.qt.io/qt-6/qcommandlineparser.html#showMessageAndExit
+          $env:QT_COMMAND_LINE_PARSER_NO_GUI_MESSAGE_BOXES = '1'
+          $stdout = Join-Path $env:GITHUB_WORKSPACE 'build.artifacts/startup-stdout.log'
+          $stderr = Join-Path $env:GITHUB_WORKSPACE 'build.artifacts/startup-stderr.log'
+          $app = Start-Process $exe.FullName -ArgumentList '--version' -PassThru -NoNewWindow `
+            -WorkingDirectory $exe.DirectoryName -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          try {
+            if (!$app.WaitForExit(60000)) {
+              $app.Kill($true)
+              $app.WaitForExit()
+              throw 'Installed application startup timed out; see startup logs in verification diagnostics'
+            }
+            # Complete redirected output before reading the version or exit code.
+            $app.WaitForExit()
+            if ($app.ExitCode -ne 0) { throw "Application exited with $($app.ExitCode)" }
+            $version = Get-Content $stdout -Raw
+            if ([string]::IsNullOrWhiteSpace($version) -or $version -notmatch 'MuseScore.*\d+\.\d+') {
+              throw 'Installed application did not print the expected version'
+            }
+          } finally {
+            Get-Content $stdout, $stderr -ErrorAction SilentlyContinue
+            $app.Dispose()
+          }
+
+      - name: Upload verification diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: VirtScore-windows-verification-logs
+          path: build.artifacts/*.log
+          if-no-files-found: warn
+          retention-days: 30
+
   release:
     name: Publish tagged Windows installer
     if: startsWith(github.ref, 'refs/tags/')
-    needs: build
+    needs: [build, verify]
     runs-on: ubuntu-latest
     permissions:
       contents: write

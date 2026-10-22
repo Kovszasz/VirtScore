@@ -10,8 +10,10 @@ Studio. This workflow does not sign the installer.
 
 1. Open **Actions → Windows release → Run workflow**, select the desired branch
    or tag, and run it. Branch and tag pushes also trigger the workflow.
-2. Wait for **Build Windows x64 installer**, including the silent MSI installation
-   and installed executable startup check, to succeed.
+2. Wait for **Build Windows x64 installer** and then **Verify installed Windows
+   application** to succeed. The build uploads the installer before verification,
+   so it remains downloadable if the smoke test fails; treat it as unverified in
+   that case.
 3. Download **VirtScore-windows-x64** under the run's **Artifacts** and extract it.
    Open `VirtScore-windows-x64-<run number>.msi` to install. Workflow artifacts
    expire after 30 days.
@@ -29,6 +31,14 @@ Get-FileHash .\VirtScore-windows-x64-123.msi -Algorithm SHA256
 ```
 
 Unsigned builds can show an unknown-publisher warning in Windows.
+
+Verification runs in a separate job on a fresh runner without the build-time Qt
+installation. If it fails, download **VirtScore-windows-verification-logs** for
+the MSI install log and startup stdout/stderr. Use **Re-run failed jobs** to retry
+verification with the saved installer, without rebuilding. Rerunning an older
+workflow uses its original workflow file; start a new run on the updated branch
+to pick up workflow fixes. Tagged releases are published only after verification
+succeeds.
 
 ## Permissions and secrets
 
@@ -71,6 +81,10 @@ cpack --config build/windows-release/CPackConfig.cmake -G WIX -B build.artifacts
 The explicit WiX root overrides the packaging file's legacy WiX 3.11 default.
 The workflow checks for exactly one MSI, writes a SHA-256 checksum, installs it
 silently in a temporary directory, and invokes the installed program with
-`--version` after removing the CI Qt tools from PATH. This smoke check validates
-packaged startup; interactive notation behavior still requires score tests and
+`--version` on the fresh verification runner. The check redirects stdout/stderr,
+requires a successful exit and version output, and sets
+`QT_COMMAND_LINE_PARSER_NO_GUI_MESSAGE_BOXES=1` so Qt cannot wait for a version
+message box to be dismissed in unattended CI. See the
+[Qt command-line parser documentation](https://doc.qt.io/qt-6/qcommandlineparser.html#showMessageAndExit).
+This smoke check validates packaged startup; interactive notation behavior still requires score tests and
 manual review. The Linux devcontainer cannot execute this Windows build.
