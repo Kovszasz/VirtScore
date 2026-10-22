@@ -39,6 +39,28 @@ See [Code Structure on Wiki](https://github.com/musescore/MuseScore/wiki/CodeStr
 
 **Read the [Compilation section](https://github.com/musescore/MuseScore/wiki/Set-up-developer-environment) of the [MuseScore Wiki](https://github.com/musescore/MuseScore/wiki) for a complete build walkthrough and a list of dependencies.**
 
+### Development container
+
+A ready-to-use C++/Qt environment is available in
+[`.devcontainer`](.devcontainer/README.md). Open this repository with VS Code's
+Dev Containers extension, or use `@devcontainers/cli`.
+
+### Windows downloads from pushes
+
+The **Windows release** GitHub Actions workflow builds an x64 MSI installer on
+every branch push and can also be run manually. Once the build, packaging and
+installation checks pass, download `VirtScore-windows-x64-<build>.msi` from the
+repository's **Releases** page. Each run creates a separate development prerelease;
+the same installer and a SHA-256 checksum are also available under the workflow
+run's **Artifacts** for 30 days.
+
+These builds use Release compiler optimization with the testing release channel.
+They are unsigned and retain the current MuseScore Studio application branding,
+so Windows may prompt about an unknown publisher. No signing or publishing
+secrets are needed; release publishing uses the repository's `GITHUB_TOKEN` with
+`contents: write` in the publishing job. Repository or organization policies must
+allow that permission. Tags pushed on their own do not trigger this workflow.
+
 ### Getting sources
 
 If using git to download repo of entire code history, type:

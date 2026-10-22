@@ -1,0 +1,175 @@
+name: Windows release
+
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Windows x64 installer
+    runs-on: windows-2025
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out sources and pinned dependencies
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Cache Qt
+        id: qt-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/Qt
+          key: windows-qt-6.11.2-msvc2022-v1
+
+      - name: Install Qt
+        if: steps.qt-cache.outputs.cache-hit != 'true'
+        run: |
+          python -m pip install "aqtinstall @ git+https://github.com/miurahr/aqtinstall.git" "py7zr @ git+https://github.com/miurahr/py7zr.git"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python .devcontainer/patch-aqt.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m aqt install-qt windows desktop 6.11.2 win64_msvc2022_64 `
+            --outputdir "$env:RUNNER_TEMP/Qt" `
+            --archives qtbase qtdeclarative qtsvg qttools qttranslations `
+            --modules qt5compat qtnetworkauth qtshadertools qtwebsockets
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Configure Qt environment
+        run: |
+          $qtRoot = "$env:RUNNER_TEMP/Qt/6.11.2/msvc2022_64"
+          "QT_ROOT_DIR=$qtRoot" >> $env:GITHUB_ENV
+          "${qtRoot}/bin" >> $env:GITHUB_PATH
+
+      - name: Enable MSVC x64 tools
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install WiX 3
+        run: |
+          choco install wixtoolset --version=3.14.1 --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $wixBin = Join-Path ${env:ProgramFiles(x86)} 'WiX Toolset v3.14\bin'
+          if (!(Test-Path "$wixBin\candle.exe")) { throw 'WiX 3 tools missing' }
+          $wixBin >> $env:GITHUB_PATH
+
+      - name: Generate English translations
+        shell: bash
+        env:
+          LUPDATE_ARGS: ''
+          POSTPROCESS_ARGS: --warn-only
+          POSTPROCESS_LAUNCHER: python -X utf8
+        run: bash tools/translations/run_lupdate.sh
+
+      - name: Configure Release build
+        run: |
+          $productGuid = [guid]::NewGuid().ToString().ToUpperInvariant()
+          cmake -S . -B build/windows-release -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            "-DCMAKE_INSTALL_PREFIX=$env:GITHUB_WORKSPACE/build/windows-install" `
+            "-DCMAKE_PREFIX_PATH=$env:QT_ROOT_DIR" `
+            "-DCMAKE_BUILD_NUMBER=$env:GITHUB_RUN_NUMBER" `
+            "-DMUSESCORE_REVISION=$env:GITHUB_SHA" `
+            -DMUSE_APP_BUILD_MODE=testing `
+            -DMUSE_ENABLE_UNIT_TESTS=OFF `
+            -DMUE_RUN_WINDEPLOYQT=ON `
+            -DMUSE_MODULE_NETWORK_WEBSOCKET=ON `
+            -DMUE_PACK_INSTALL_DIR=ON `
+            "-DCPACK_WIX_PRODUCT_GUID=$productGuid" `
+            -DCPACK_WIX_UPGRADE_GUID=8EAD93A4-FBE5-465B-950F-F48DD209936A
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build and install with Qt runtime dependencies
+        run: |
+          cmake --build build/windows-release --target install --parallel 4
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Package MSI and checksum
+        run: |
+          cpack --config build/windows-release/CPackConfig.cmake -G WIX -B build.artifacts
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $installers = @(Get-ChildItem build.artifacts -Filter *.msi)
+          if ($installers.Count -ne 1) { throw 'Expected exactly one MSI installer' }
+          $name = "VirtScore-windows-x64-$env:GITHUB_RUN_NUMBER.msi"
+          $destination = Join-Path $env:GITHUB_WORKSPACE "build.artifacts/$name"
+          Move-Item $installers[0].FullName $destination
+          $hash = (Get-FileHash $destination -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $name" | Set-Content build.artifacts/SHA256SUMS.txt -Encoding ascii
+
+      - name: Verify MSI installation and executable startup
+        run: |
+          $msi = (Get-ChildItem build.artifacts -Filter *.msi).FullName
+          $installDir = Join-Path $env:RUNNER_TEMP 'VirtScore-installed'
+          $log = Join-Path $env:RUNNER_TEMP 'VirtScore-install.log'
+          $arguments = "/i `"$msi`" /qn /norestart INSTALL_ROOT=`"$installDir`" /L*v `"$log`""
+          $installer = Start-Process msiexec.exe -ArgumentList $arguments -Wait -PassThru
+          if ($installer.ExitCode -notin @(0, 3010)) {
+            Get-Content $log -Tail 100
+            throw "MSI installation failed: $($installer.ExitCode)"
+          }
+          $exe = Get-ChildItem "$installDir/bin" -Filter 'MuseScoreStudio*.exe' | Select-Object -First 1
+          if (!$exe) { throw 'Installed application executable missing' }
+          # Ensure startup uses packaged Qt DLLs rather than the CI Qt installation.
+          $env:PATH = ($env:PATH -split ';' | Where-Object { $_ -notlike "$env:QT_ROOT_DIR*" }) -join ';'
+          $env:QT_QPA_PLATFORM = 'offscreen'
+          $app = Start-Process $exe.FullName -ArgumentList '--version' -PassThru -NoNewWindow
+          if (!$app.WaitForExit(60000)) {
+            $app.Kill()
+            throw 'Installed application startup timed out'
+          }
+          if ($app.ExitCode -ne 0) { throw "Application exited with $($app.ExitCode)" }
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: VirtScore-windows-x64
+          path: |
+            build.artifacts/*.msi
+            build.artifacts/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Publish downloadable prerelease
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download installer
+        uses: actions/download-artifact@v8
+        with:
+          name: VirtScore-windows-x64
+          path: release
+
+      - name: Create GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_COMMIT: ${{ github.sha }}
+          RELEASE_TAG: windows-build-${{ github.run_number }}-${{ github.run_attempt }}
+        run: |
+          cat > release-notes.md <<'NOTES'
+          Windows x64 build of VirtScore. Download the `.msi` file and open it to install.
+
+          This is an unsigned development build; Windows may show an unknown-publisher warning.
+          The application and installer currently retain MuseScore Studio branding.
+          Verify the download against `SHA256SUMS.txt` if needed.
+          NOTES
+          gh release create "$RELEASE_TAG" release/*.msi release/SHA256SUMS.txt \
+            --target "$RELEASE_COMMIT" \
+            --title "VirtScore Windows build ${GITHUB_RUN_NUMBER}" \
+            --notes-file release-notes.md --prerelease --latest=false
