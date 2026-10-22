@@ -370,7 +370,8 @@ void EditModeRenderer::drawAlterationChord(const AlterationChord* item, muse::dr
             Color boxColor = item->configuration()->frameColor();
             boxColor.setAlpha(item->slotText(i).isEmpty() ? 120 : 180);
             painter->setBrush(BrushStyle::NoBrush);
-            painter->setPen(Pen(boxColor, 1.0 / currentViewScaling, item->slotText(i).isEmpty() ? PenStyle::DashLine : PenStyle::SolidLine));
+            painter->setPen(Pen(boxColor, 1.0 / currentViewScaling,
+                                item->slotText(i).isEmpty() ? PenStyle::DashLine : PenStyle::SolidLine));
             painter->drawRect(r);
         }
     }
