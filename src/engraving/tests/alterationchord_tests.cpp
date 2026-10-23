@@ -161,7 +161,9 @@ TEST_F(Engraving_AlterationChordTests, EditingKeystrokes)
     chord->edit(ed);
     EXPECT_EQ(chord->slotText(0), u"7");
 
-    // Delete clears the slot
+    // Delete removes the character after the cursor.
+    ed.key = Key_Home;
+    chord->edit(ed);
     ed.key = Key_Delete;
     chord->edit(ed);
     EXPECT_TRUE(chord->slotText(0).isEmpty());
@@ -204,20 +206,20 @@ TEST_F(Engraving_AlterationChordTests, LayoutGeometry)
 
     EXPECT_GE(ldata->slotSize, 0.65 * sp);
     EXPECT_GT(ldata->centralRect.width(), 0.0);
-    EXPECT_GE(ldata->centralRect.height(), 2.0 * ldata->slotSize);
+    EXPECT_GT(ldata->centralRect.height(), 0.0);
 
     // Verify 4 top slots have identical Y
     for (int i = 0; i < 4; ++i) {
         EXPECT_DOUBLE_EQ(ldata->slotRect[i].y(), ldata->centralRect.top() - ldata->slotSize);
         EXPECT_DOUBLE_EQ(ldata->slotRect[i].height(), ldata->slotSize);
-        EXPECT_DOUBLE_EQ(ldata->slotRect[i].width(), ldata->slotSize);
+        EXPECT_GT(ldata->slotRect[i].width(), 0.0);
     }
 
     // Verify 4 bottom slots have identical Y
     for (int i = 6; i <= 9; ++i) {
         EXPECT_DOUBLE_EQ(ldata->slotRect[i].y(), ldata->centralRect.bottom());
         EXPECT_DOUBLE_EQ(ldata->slotRect[i].height(), ldata->slotSize);
-        EXPECT_DOUBLE_EQ(ldata->slotRect[i].width(), ldata->slotSize);
+        EXPECT_GT(ldata->slotRect[i].width(), 0.0);
     }
 
     // Left slots have identical X
@@ -387,14 +389,14 @@ TEST_F(Engraving_AlterationChordTests, ClickEmptySlotWithNonzeroCanvasPosAndAngl
     chord->startEdit(ed);
 
     EXPECT_EQ(chord->activeSlot(), 3);
-    EXPECT_TRUE(chord->isSlotSelected());
+    EXPECT_FALSE(chord->isSlotSelected());
 
     // Click slot 7 (Bottom2) in CANVAS coords via mousePress
     PointF slot7Canvas = chord->canvasPos() + l->slotRect[7].center();
     ed.startMove = slot7Canvas;
     EXPECT_TRUE(chord->mousePress(ed));
     EXPECT_EQ(chord->activeSlot(), 7);
-    EXPECT_TRUE(chord->isSlotSelected());
+    EXPECT_FALSE(chord->isSlotSelected());
 
     chord->endEdit(ed);
 
@@ -572,18 +574,18 @@ TEST_F(Engraving_AlterationChordTests, SlotUsabilityFocusSelectAllPasteCutSurrog
     chord->setSlotText(0, u"b9");
     chord->setSlotText(1, u"𝄫"); // musical flat double surrogate pair (U+1D12B)
 
-    // Tab into slot 0 -> field should be selected
+    // Tab into slot 0 preserves existing text and places the cursor at the end
     EditData ed;
     ed.key = Key_Tab;
     chord->edit(ed);
     EXPECT_EQ(chord->activeSlot(), 0);
-    EXPECT_TRUE(chord->isSlotSelected());
+    EXPECT_FALSE(chord->isSlotSelected());
 
-    // Typing '3' replaces 'b9' because whole field was selected
+    // Typing '3' appends without replacing the existing characters
     ed.key = 0;
     ed.s = u"3";
     chord->edit(ed);
-    EXPECT_EQ(chord->slotText(0), u"3");
+    EXPECT_EQ(chord->slotText(0), u"b93");
     EXPECT_FALSE(chord->isSlotSelected());
 
     // Ctrl+A selects whole active slot field
@@ -788,9 +790,8 @@ TEST_F(Engraving_AlterationChordTests, CompactSideLabelsKeepSelectableDisjointSl
     const auto* ldata = chord->ldata();
     ASSERT_FALSE(ldata->slotTextRuns[4].empty());
     const auto& run = ldata->slotTextRuns[4].front();
-    const RectF label = muse::draw::FontMetrics(run.font).boundingRect(run.text).translated(run.pos);
-    const RectF central = ldata->blocks.front().boundingRect();
-    EXPECT_NEAR(label.left() - central.right(), 0.05 * chord->spatium(), 0.001);
+    const RectF label = muse::draw::FontMetrics(run.font).tightBoundingRect(run.text).translated(run.pos);
+    EXPECT_NEAR(label.left(), ldata->centralRect.right(), 0.001);
     EditData ed;
     chord->startEdit(ed);
     chord->setPos(10.0, 20.0);
@@ -898,5 +899,101 @@ TEST_F(Engraving_AlterationChordTests, PaletteModifiersAppendToNumberAndInsertIn
     EXPECT_EQ(restored->slotText(4), expected);
     EXPECT_EQ(restored->centralText(), chord->centralText());
     delete restored;
+    delete chord;
+}
+
+TEST_F(Engraving_AlterationChordTests, ReeditIndividualSlotCharacters)
+{
+    auto chord = Factory::createAlterationChord(m_score->dummy());
+    chord->setSlotText(0, u"6#9");
+    EditData ed;
+    ed.key = Key_Tab;
+    chord->edit(ed);
+    EXPECT_FALSE(chord->isSlotSelected());
+    EXPECT_EQ(chord->slotCursorPosition(), 3);
+    ed.key = Key_Left;
+    EXPECT_TRUE(chord->isEditAllowed(ed));
+    chord->edit(ed);
+    ed.key = Key_Backspace;
+    chord->edit(ed);
+    EXPECT_EQ(chord->slotText(0), u"69");
+    chord->insertText(u"b");
+    EXPECT_EQ(chord->slotText(0), u"6b9");
+    chord->paste(u"𝄫");
+    EXPECT_EQ(chord->slotText(0), u"6b𝄫9");
+    ed.key = Key_Left;
+    chord->edit(ed);
+    EXPECT_EQ(chord->slotCursorPosition(), 2);
+    ed.key = Key_Delete;
+    chord->edit(ed);
+    EXPECT_EQ(chord->slotText(0), u"6b9");
+    ed.key = Key_End;
+    chord->edit(ed);
+    ed.key = Key_Delete;
+    chord->edit(ed);
+    EXPECT_EQ(chord->slotText(0), u"6b9");
+    chord->selectAll();
+    chord->insertText(u"3#");
+    EXPECT_EQ(chord->slotText(0), u"3#");
+    delete chord;
+}
+
+TEST_F(Engraving_AlterationChordTests, InwardEdgesAlignedCornersAndMouseCursor)
+{
+    Measure* measure = Factory::createMeasure(m_score);
+    m_score->measures()->append(measure);
+    Segment* segment = measure->getSegment(SegmentType::ChordRest, Fraction(0, 1));
+    auto chord = Factory::createAlterationChord(segment);
+    chord->setTrack(0);
+    chord->setAutoplace(false);
+    chord->setCentralText(u"IV");
+    for (int i = 0; i < AlterationChord::SLOTS_COUNT; ++i) {
+        chord->setSlotText(i, i % 2 ? u"6#" : u"3");
+    }
+    m_score->renderer()->layoutItem(static_cast<TextBase*>(chord));
+    const auto* l = chord->ldata();
+    auto ink = [l](int i) {
+        RectF result;
+        for (const auto& run : l->slotTextRuns[i]) {
+            result.unite(muse::draw::FontMetrics(run.font).tightBoundingRect(run.text).translated(run.pos));
+        }
+        return result;
+    };
+    for (int i : { 0, 1, 2, 3 }) {
+        EXPECT_NEAR(ink(i).bottom(), l->centralRect.top(), 0.001);
+    }
+    for (int i : { 6, 7, 8, 9 }) {
+        EXPECT_NEAR(ink(i).top(), l->centralRect.bottom(), 0.001);
+    }
+    for (int i : { 4, 5 }) {
+        EXPECT_NEAR(ink(i).left(), l->centralRect.right(), 0.001);
+    }
+    for (int i : { 10, 11 }) {
+        EXPECT_NEAR(ink(i).right(), l->centralRect.left(), 0.001);
+    }
+    EXPECT_DOUBLE_EQ(l->slotRect[0].left(), l->slotRect[11].left());
+    EXPECT_DOUBLE_EQ(l->slotRect[9].left(), l->slotRect[10].left());
+    EXPECT_DOUBLE_EQ(l->slotRect[3].left(), l->slotRect[4].left());
+    EXPECT_DOUBLE_EQ(l->slotRect[6].left(), l->slotRect[5].left());
+    EXPECT_LT(l->centralRect.height(), 2.0 * l->slotSize);
+    for (int i = 0; i < AlterationChord::SLOTS_COUNT; ++i) {
+        for (int j = i + 1; j < AlterationChord::SLOTS_COUNT; ++j) {
+            const auto overlap = l->slotRect[i].intersected(l->slotRect[j]);
+            EXPECT_LE(overlap.width() * overlap.height(), 0.001);
+        }
+    }
+    EditData ed;
+    ed.startMove = chord->canvasPos() + l->slotRect[5].center();
+    chord->startEdit(ed);
+    const auto& run = chord->ldata()->slotTextRuns[5].front();
+    const double x = run.pos.x() + muse::draw::FontMetrics(run.font).horizontalAdvance(u"6");
+    ed.startMove = chord->canvasPos() + PointF(x, l->slotRect[5].center().y());
+    EXPECT_TRUE(chord->mousePress(ed));
+    EXPECT_EQ(chord->activeSlot(), 5);
+    EXPECT_EQ(chord->slotCursorPosition(), 1);
+    EXPECT_FALSE(chord->isSlotSelected());
+    chord->insertText(u"b");
+    EXPECT_EQ(chord->slotText(5), u"6b#");
+    chord->endEdit(ed);
     delete chord;
 }

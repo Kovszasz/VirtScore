@@ -355,7 +355,7 @@ void EditModeRenderer::drawAlterationChord(const AlterationChord* item, muse::dr
         painter->drawRect(ldata->centralRect);
     }
 
-    // 2. Draw 12 slots with square placeholders / selection only (no text labels, avoiding double drawing with TDraw)
+    // 2. Draw 12 slots with field outlines / selection only (no text labels, avoiding double drawing with TDraw)
     for (int i = 0; i < AlterationChord::SLOTS_COUNT; ++i) {
         const RectF& r = ldata->slotRect[i];
         bool isActive = (item->activeSlot() == i);
@@ -366,6 +366,10 @@ void EditModeRenderer::drawAlterationChord(const AlterationChord* item, muse::dr
             painter->setBrush(Brush(selBg));
             painter->setPen(Pen(item->configuration()->selectionColor(), 2.0 / currentViewScaling));
             painter->drawRect(r);
+            if (!item->isSlotSelected()) {
+                painter->setBrush(item->configuration()->selectionColor());
+                painter->drawRect(item->slotCursorRect());
+            }
         } else {
             Color boxColor = item->configuration()->frameColor();
             boxColor.setAlpha(item->slotText(i).isEmpty() ? 120 : 180);

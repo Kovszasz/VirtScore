@@ -105,7 +105,9 @@ public:
     };
 
     int activeSlot() const { return m_activeSlot; }
-    void setActiveSlot(int slot) { m_activeSlot = slot; }
+    void setActiveSlot(int slot) { m_activeSlot = slot; m_slotCursor = -1; }
+    size_t slotCursorPosition() const;
+    RectF slotCursorRect() const;
 
     void nextSlot();
     void prevSlot();
@@ -124,9 +126,11 @@ public:
     static void calculateSlotsLayout(LayoutData* ldata, double sp, const AlterationChord* item = nullptr);
 
 private:
+    void focusSlotAt(int slot, double x);
     std::array<String, SLOTS_COUNT> m_slots;
     int m_activeSlot = FOCUS_CENTRAL;
     bool m_slotSelected = false;
+    int m_slotCursor = -1;
 };
 
 inline AlterationChord* toAlterationChord(EngravingItem* item)

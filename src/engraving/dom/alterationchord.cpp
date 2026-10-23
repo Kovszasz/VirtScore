@@ -152,6 +152,7 @@ void AlterationChord::setSlots(const std::array<String, SLOTS_COUNT>& newSlots)
 
 void AlterationChord::nextSlot()
 {
+    m_slotCursor = -1;
     if (m_activeSlot == FOCUS_CENTRAL) {
         m_activeSlot = 0;
     } else if (m_activeSlot == SLOTS_COUNT - 1) {
@@ -163,6 +164,7 @@ void AlterationChord::nextSlot()
 
 void AlterationChord::prevSlot()
 {
+    m_slotCursor = -1;
     if (m_activeSlot == FOCUS_CENTRAL) {
         m_activeSlot = SLOTS_COUNT - 1;
     } else if (m_activeSlot == 0) {
@@ -196,8 +198,7 @@ void AlterationChord::startEdit(EditData& ed)
         }
         for (int i = 0; i < SLOTS_COUNT; ++i) {
             if (l->slotRect[i].contains(localPos)) {
-                m_activeSlot = i;
-                m_slotSelected = true;
+                focusSlotAt(i, localPos.x());
                 return;
             }
         }
@@ -229,8 +230,7 @@ bool AlterationChord::mousePress(EditData& ed)
         }
         for (int i = 0; i < SLOTS_COUNT; ++i) {
             if (l->slotRect[i].contains(localPos)) {
-                m_activeSlot = i;
-                m_slotSelected = true;
+                focusSlotAt(i, localPos.x());
                 score()->setUpdateAll();
                 return true;
             }
@@ -270,6 +270,7 @@ bool AlterationChord::isEditAllowed(EditData& ed) const
         }
 
         if (ed.key == Key_Backspace || ed.key == Key_Delete
+            || ed.key == Key_Left || ed.key == Key_Right || ed.key == Key_Home || ed.key == Key_End
             || ed.key == Key_Escape || ed.key == Key_Return || ed.key == Key_Enter) {
             return true;
         }
@@ -292,10 +293,8 @@ bool AlterationChord::edit(EditData& ed)
         } else {
             nextSlot();
         }
-        if (m_activeSlot >= 0 && m_activeSlot < SLOTS_COUNT) {
-            m_slotSelected = true;
-        } else {
-            m_slotSelected = false;
+        m_slotSelected = false;
+        if (m_activeSlot == FOCUS_CENTRAL) {
             selectAll();
         }
         score()->setUpdateAll();
@@ -316,39 +315,57 @@ bool AlterationChord::edit(EditData& ed)
 
         String current = m_slots[m_activeSlot];
 
-        if (ed.key == Key_Backspace) {
-            if (m_slotSelected) {
-                undoSetSlotText(m_activeSlot, String());
-                m_slotSelected = false;
-            } else if (!current.isEmpty()) {
-                size_t len = current.size();
-                if (len >= 2 && current.at(len - 1).isLowSurrogate() && current.at(len - 2).isHighSurrogate()) {
-                    undoSetSlotText(m_activeSlot, current.left(len - 2));
-                } else {
-                    undoSetSlotText(m_activeSlot, current.left(len - 1));
-                }
+        size_t pos = slotCursorPosition();
+        auto previous = [&current](size_t p) {
+            if (p == 0) {
+                return p;
             }
+            --p;
+            if (p > 0 && current.at(p).isLowSurrogate() && current.at(p - 1).isHighSurrogate()) {
+                --p;
+            }
+            return p;
+        };
+        auto next = [&current](size_t p) {
+            if (p == current.size()) {
+                return p;
+            }
+            if (current.at(p).isHighSurrogate() && p + 1 < current.size() && current.at(p + 1).isLowSurrogate()) {
+                ++p;
+            }
+            return p + 1;
+        };
+        if (ed.key == Key_Left || ed.key == Key_Right || ed.key == Key_Home || ed.key == Key_End) {
+            if (ed.key == Key_Home || (m_slotSelected && ed.key == Key_Left)) {
+                pos = 0;
+            } else if (ed.key == Key_End || (m_slotSelected && ed.key == Key_Right)) {
+                pos = current.size();
+            } else {
+                pos = ed.key == Key_Left ? previous(pos) : next(pos);
+            }
+            m_slotCursor = static_cast<int>(pos);
+            m_slotSelected = false;
             score()->setUpdateAll();
             return true;
         }
 
-        if (ed.key == Key_Delete) {
-            if (m_slotSelected || !current.isEmpty()) {
+        if (ed.key == Key_Backspace || ed.key == Key_Delete) {
+            if (m_slotSelected) {
                 undoSetSlotText(m_activeSlot, String());
-                m_slotSelected = false;
+                m_slotCursor = 0;
+            } else {
+                const size_t start = ed.key == Key_Backspace ? previous(pos) : pos;
+                const size_t end = ed.key == Key_Delete ? next(pos) : pos;
+                undoSetSlotText(m_activeSlot, current.left(start) + current.mid(end));
+                m_slotCursor = static_cast<int>(start);
             }
+            m_slotSelected = false;
             score()->setUpdateAll();
             return true;
         }
 
         if (!ed.s.isEmpty() && (!ctrlPressed || altGrText) && ed.key != Key_Escape && ed.key != Key_Return && ed.key != Key_Enter) {
-            if (m_slotSelected) {
-                undoSetSlotText(m_activeSlot, ed.s);
-                m_slotSelected = false;
-            } else {
-                undoSetSlotText(m_activeSlot, current + ed.s);
-            }
-            score()->setUpdateAll();
+            insertText(ed.s);
             return true;
         }
 
@@ -374,6 +391,7 @@ bool AlterationChord::deleteSelectedText()
         if (m_slotSelected) {
             undoSetSlotText(m_activeSlot, String());
             m_slotSelected = false;
+            m_slotCursor = 0;
             score()->setUpdateAll();
             return true;
         }
@@ -400,12 +418,7 @@ void AlterationChord::paste(const String& txt)
 {
     if (m_activeSlot >= 0 && m_activeSlot < SLOTS_COUNT) {
         score()->startCmd(TranslatableString("undoableAction", "Paste text"));
-        if (m_slotSelected) {
-            undoSetSlotText(m_activeSlot, txt);
-            m_slotSelected = false;
-        } else {
-            undoSetSlotText(m_activeSlot, slotText(m_activeSlot) + txt);
-        }
+        insertText(txt);
         score()->endCmd();
         score()->setUpdateAll();
         return;
@@ -419,7 +432,10 @@ void AlterationChord::insertText(const String& text)
         TextBase::insertText(text);
         return;
     }
-    undoSetSlotText(m_activeSlot, m_slotSelected ? text : slotText(m_activeSlot) + text);
+    const size_t pos = m_slotSelected ? 0 : slotCursorPosition();
+    const String current = slotText(m_activeSlot);
+    undoSetSlotText(m_activeSlot, m_slotSelected ? text : current.left(pos) + text + current.mid(pos));
+    m_slotCursor = static_cast<int>(pos + text.size());
     m_slotSelected = false;
     score()->setUpdateAll();
 }
@@ -450,9 +466,68 @@ EngravingItem* AlterationChord::drop(Transaction& tx, EditData& ed)
     return TextBase::drop(tx, ed);
 }
 
+size_t AlterationChord::slotCursorPosition() const
+{
+    const size_t length = slotText(m_activeSlot).size();
+    return m_slotCursor < 0 ? length : std::min(static_cast<size_t>(m_slotCursor), length);
+}
+
+RectF AlterationChord::slotCursorRect() const
+{
+    if (m_activeSlot < 0 || m_activeSlot >= SLOTS_COUNT) {
+        return RectF();
+    }
+    const auto* l = ldata();
+    const RectF& rect = l->slotRect[m_activeSlot];
+    double x = rect.left();
+    size_t remaining = slotCursorPosition();
+    for (const auto& run : l->slotTextRuns[m_activeSlot]) {
+        const size_t count = std::min(remaining, run.text.size());
+        x = run.pos.x() + muse::draw::FontMetrics(run.font).horizontalAdvance(run.text.left(count));
+        if (remaining <= run.text.size()) {
+            break;
+        }
+        remaining -= run.text.size();
+    }
+    return RectF(std::clamp(x, rect.left(), rect.right()), rect.top(), 0.025 * spatium(), rect.height());
+}
+
+void AlterationChord::focusSlotAt(int slot, double x)
+{
+    setActiveSlot(slot);
+    m_slotSelected = false;
+    double distance = 1e20;
+    int closest = 0;
+    const String text = slotText(slot);
+    for (size_t p = 0; p <= text.size(); ++p) {
+        if (p < text.size() && text.at(p).isLowSurrogate()) {
+            continue;
+        }
+        m_slotCursor = static_cast<int>(p);
+        const double d = std::abs(slotCursorRect().left() - x);
+        if (d < distance) {
+            distance = d;
+            closest = static_cast<int>(p);
+        }
+    }
+    m_slotCursor = closest;
+}
+
 void AlterationChord::calculateSlotsLayout(LayoutData* ldata, double sp, const AlterationChord* item)
 {
     RectF cbb = ldata->shape().bbox();
+    if (item) {
+        RectF ink;
+        for (const auto& block : ldata->blocks) {
+            for (const auto& fragment : block.fragments()) {
+                ink.unite(muse::draw::FontMetrics(fragment.font(item)).tightBoundingRect(fragment.text)
+                          .translated(fragment.pos + PointF(0.0, block.y())));
+            }
+        }
+        if (!ink.isEmpty()) {
+            cbb = ink;
+        }
+    }
     double slotSize = 0.65 * sp;
     const double padding = 0.05 * sp;
     std::array<RectF, SLOTS_COUNT> textBounds;
@@ -483,7 +558,7 @@ void AlterationChord::calculateSlotsLayout(LayoutData* ldata, double sp, const A
         for (auto& run : runs) {
             muse::draw::FontMetrics fm(run.font);
             run.pos = PointF(x, 0.0);
-            const RectF bounds = fm.boundingRect(run.text).translated(run.pos);
+            const RectF bounds = fm.tightBoundingRect(run.text).translated(run.pos);
             textBounds[i].unite(bounds);
             x += fm.horizontalAdvance(run.text);
         }
@@ -491,48 +566,70 @@ void AlterationChord::calculateSlotsLayout(LayoutData* ldata, double sp, const A
     }
 
     ldata->slotSize = slotSize;
+    double rowHeight = 0.65 * sp;
+    double columnWidth = 0.65 * sp;
+    for (int i : { 0, 1, 2, 3, 6, 7, 8, 9 }) {
+        rowHeight = std::max(rowHeight, textBounds[i].height() + padding);
+    }
+    for (int i : { 0, 3, 4, 5, 6, 9, 10, 11 }) {
+        columnWidth = std::max(columnWidth, textBounds[i].width() + padding);
+    }
 
-    double centralW = std::max(0.1 * sp, cbb.width() + 2.0 * padding);
-    double centralH = std::max(2.0 * slotSize, cbb.height() + 2.0 * padding);
+    double topWidth = 0.325 * sp;
+    for (int i : { 1, 2, 7, 8 }) {
+        topWidth = std::max(topWidth, textBounds[i].width() + padding);
+    }
+    double centralW = std::max(2.0 * topWidth, cbb.width() + 2.0 * padding);
+    double sideHeight = 0.325 * sp;
+    for (int i : { 4, 5, 10, 11 }) {
+        sideHeight = std::max(sideHeight, textBounds[i].height() + padding);
+    }
+    double centralH = std::max(2.0 * sideHeight, cbb.height() + 2.0 * padding);
 
     double cx = cbb.center().x();
     double cy = cbb.center().y();
     RectF centralRect(cx - centralW / 2.0, cy - centralH / 2.0, centralW, centralH);
     ldata->centralRect = centralRect;
 
-    // The two top/bottom fields may extend beyond a narrow central glyph. Move
-    // only the corners outward so all twelve hit targets stay disjoint.
-    const double leftCorner = std::min(centralRect.left(), cx - slotSize) - slotSize;
-    const double rightCorner = std::max(centralRect.right(), cx + slotSize);
+    // Corners share columns with the side fields. Top/bottom fields split the
+    // central width, so wide side text cannot push corners out of alignment.
+    const double leftCorner = centralRect.left() - columnWidth;
+    const double rightCorner = centralRect.right();
 
-    // Top row: 0=TopLeft, 1=Top1, 2=Top2, 3=TopRight (all square slotSize x slotSize)
-    ldata->slotRect[0] = RectF(leftCorner, centralRect.top() - slotSize, slotSize, slotSize);
-    ldata->slotRect[1] = RectF(centralRect.center().x() - slotSize, centralRect.top() - slotSize, slotSize, slotSize);
-    ldata->slotRect[2] = RectF(centralRect.center().x(), centralRect.top() - slotSize, slotSize, slotSize);
-    ldata->slotRect[3] = RectF(rightCorner, centralRect.top() - slotSize, slotSize, slotSize);
+    // Top row: 0=TopLeft, 1=Top1, 2=Top2, 3=TopRight
+    ldata->slotRect[0] = RectF(leftCorner, centralRect.top() - rowHeight, columnWidth, rowHeight);
+    ldata->slotRect[1] = RectF(centralRect.left(), centralRect.top() - rowHeight, centralW / 2.0, rowHeight);
+    ldata->slotRect[2] = RectF(cx, centralRect.top() - rowHeight, centralW / 2.0, rowHeight);
+    ldata->slotRect[3] = RectF(rightCorner, centralRect.top() - rowHeight, columnWidth, rowHeight);
 
     // Right column: 4=Right1, 5=Right2
-    ldata->slotRect[4] = RectF(centralRect.right(), centralRect.center().y() - slotSize, slotSize, slotSize);
-    ldata->slotRect[5] = RectF(centralRect.right(), centralRect.center().y(), slotSize, slotSize);
+    ldata->slotRect[4] = RectF(centralRect.right(), centralRect.top(), columnWidth, centralH / 2.0);
+    ldata->slotRect[5] = RectF(centralRect.right(), centralRect.center().y(), columnWidth, centralH / 2.0);
 
     // Bottom row: 6=BottomRight, 7=Bottom2, 8=Bottom1, 9=BottomLeft
-    ldata->slotRect[6] = RectF(rightCorner, centralRect.bottom(), slotSize, slotSize);
-    ldata->slotRect[7] = RectF(centralRect.center().x(), centralRect.bottom(), slotSize, slotSize);
-    ldata->slotRect[8] = RectF(centralRect.center().x() - slotSize, centralRect.bottom(), slotSize, slotSize);
-    ldata->slotRect[9] = RectF(leftCorner, centralRect.bottom(), slotSize, slotSize);
+    ldata->slotRect[6] = RectF(rightCorner, centralRect.bottom(), columnWidth, rowHeight);
+    ldata->slotRect[7] = RectF(cx, centralRect.bottom(), centralW / 2.0, rowHeight);
+    ldata->slotRect[8] = RectF(centralRect.left(), centralRect.bottom(), centralW / 2.0, rowHeight);
+    ldata->slotRect[9] = RectF(leftCorner, centralRect.bottom(), columnWidth, rowHeight);
 
     // Left column: 10=Left2, 11=Left1
-    ldata->slotRect[10] = RectF(centralRect.left() - slotSize, centralRect.center().y(), slotSize, slotSize);
-    ldata->slotRect[11] = RectF(centralRect.left() - slotSize, centralRect.center().y() - slotSize, slotSize, slotSize);
+    ldata->slotRect[10] = RectF(centralRect.left() - columnWidth, centralRect.center().y(), columnWidth, centralH / 2.0);
+    ldata->slotRect[11] = RectF(centralRect.left() - columnWidth, centralRect.top(), columnWidth, centralH / 2.0);
 
     for (int i = 0; i < SLOTS_COUNT; ++i) {
         const RectF& rect = ldata->slotRect[i];
         PointF origin = rect.center() - textBounds[i].center();
         // Side labels hug the central glyph instead of centering in a wide square.
-        if (i == 4 || i == 5) {
+        if (i == 3 || i == 4 || i == 5 || i == 6) {
             origin.setX(rect.left() - textBounds[i].left());
-        } else if (i == 10 || i == 11) {
+        } else if (i == 0 || i == 9 || i == 10 || i == 11) {
             origin.setX(rect.right() - textBounds[i].right());
+        }
+        // Top and bottom rows, including corners, share their inward ink edge.
+        if (i >= 0 && i <= 3) {
+            origin.setY(rect.bottom() - textBounds[i].bottom());
+        } else if (i >= 6 && i <= 9) {
+            origin.setY(rect.top() - textBounds[i].top());
         }
         for (auto& run : ldata->slotTextRuns[i]) {
             run.pos += origin;

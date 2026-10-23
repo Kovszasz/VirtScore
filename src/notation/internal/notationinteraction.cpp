@@ -4202,16 +4202,10 @@ void NotationInteraction::editText(QInputMethodEvent* event)
     if (m_editData.element && m_editData.element->isAlterationChord()) {
         mu::engraving::AlterationChord* ac = mu::engraving::toAlterationChord(m_editData.element);
         if (ac && ac->activeSlot() != mu::engraving::AlterationChord::FOCUS_CENTRAL) {
-            int slot = ac->activeSlot();
             if (!event->commitString().isEmpty()) {
                 muse::String str = muse::String::fromQString(event->commitString());
                 score()->startCmd(TranslatableString("undoableAction", "Edit text"));
-                if (ac->isSlotSelected()) {
-                    ac->undoSetSlotText(slot, str);
-                    ac->setSlotSelected(false);
-                } else {
-                    ac->undoSetSlotText(slot, ac->slotText(slot) + str);
-                }
+                ac->insertText(str);
                 score()->endCmd();
                 m_editData.preeditString.clear();
                 score()->setUpdateAll();

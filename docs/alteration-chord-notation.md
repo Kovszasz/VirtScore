@@ -13,12 +13,15 @@ palette. The default central label is `I`; replace it with `IV`, another Roman
 numeral, or arbitrary text.
 
 Double-click an existing annotation or select it and press Enter to edit it.
-Twelve square placeholders appear while editing. Click a field or use Tab and
+Twelve field outlines appear while editing. Click a field or use Tab and
 Shift+Tab to move through the central text and surrounding fields. The active
-field is highlighted. Surrounding fields select their whole value when focused;
-typing replaces that selection, then appends further characters. Ctrl/Cmd+A,
-copy, cut, and paste act on the active field. Use Backspace to remove text or
-Delete to clear a surrounding field. Press Escape or click outside the annotation to finish.
+field is highlighted. Surrounding fields preserve their text when focused. Tab
+places the cursor at the end; clicking places it near the clicked character.
+Use Left/Right and Home/End to move the cursor, and type or paste to insert at
+that position. Ctrl/Cmd+A, copy, cut, and paste act on the active field.
+Backspace and Delete remove the character before or after the cursor;
+Ctrl/Cmd+A followed by typing replaces the whole field. Press Escape or click
+outside the annotation to finish.
 Undo and redo use the score's normal commands.
 
 The surrounding fields are indexed clockwise, starting at the upper-left corner:
@@ -41,10 +44,12 @@ score rendering, printing, and graphical exports; empty fields draw no text.
 Normal annotation placement and dragging apply.
 
 Surrounding fields sit close to the central glyph, with a small gap of 0.05
-staff spaces at the sides. Empty squares are smaller, and corner targets move
-outward when needed so all twelve fields stay individually selectable. The
-Unicode/symbol palette inserts into the selected field, replacing selected
-field text or appending after it. While editing an alteration chord, the top
+staff spaces when space permits. Top labels align at their bottom edge and
+bottom labels at their top edge.
+Corner boxes share columns with side boxes, and the central box fits the visible
+characters closely. Field outlines adapt to their text while keeping all twelve
+fields individually selectable. The Unicode/symbol palette inserts into the selected field, replacing selected
+field text or inserting at the cursor. While editing an alteration chord, the top
 note-input toolbar's accidental and articulation buttons insert their glyphs
 into the active field instead of applying them to notes. In a side field these
 buttons append to the existing number, so `3` followed by the sharp button yields
