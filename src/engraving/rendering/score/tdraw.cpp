@@ -125,6 +125,7 @@
 #include "dom/stafflines.h"
 #include "dom/staffstate.h"
 #include "dom/stafftext.h"
+#include "dom/alterationchord.h"
 #include "dom/stafftype.h"
 #include "dom/stafftypechange.h"
 #include "dom/staffvisibilityindicator.h"
@@ -357,6 +358,8 @@ void TDraw::drawItem(const EngravingItem* item, Painter* painter, const PaintOpt
     case ElementType::STAFF_STATE:          draw(item_cast<const StaffState*>(item), painter, opt);
         break;
     case ElementType::STAFF_TEXT:           draw(item_cast<const StaffText*>(item), painter, opt);
+        break;
+    case ElementType::ALTERATION_CHORD:     draw(item_cast<const AlterationChord*>(item), painter, opt);
         break;
     case ElementType::STAVE_SHARING_LABEL:  draw(item_cast<const StaveSharingLabel*>(item), painter, opt);
         break;
@@ -2796,6 +2799,32 @@ void TDraw::draw(const StaffText* item, Painter* painter, const PaintOptions& op
     if (item->hasSoundFlag()) {
         draw(item->soundFlag(), painter, opt);
     }
+}
+
+void TDraw::draw(const AlterationChord* item, Painter* painter, const PaintOptions& opt)
+{
+    TRACE_DRAW_ITEM;
+
+    drawTextBase(item, painter, opt);
+
+    const AlterationChord::LayoutData* ldata = item->ldata();
+    if (!ldata) {
+        return;
+    }
+
+    painter->save();
+    painter->rotate(item->textAngle());
+
+    painter->setPen(item->textColor(opt));
+    for (const auto& runs : ldata->slotTextRuns) {
+        for (const auto& run : runs) {
+            // drawText scales the painter font for the device DPI on each call.
+            painter->setFont(run.font);
+            painter->drawText(run.pos, run.text);
+        }
+    }
+
+    painter->restore();
 }
 
 void TDraw::draw(const StaveSharingLabel* item, muse::draw::Painter* painter, const PaintOptions& opt)

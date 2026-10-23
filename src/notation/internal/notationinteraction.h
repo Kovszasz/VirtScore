@@ -273,6 +273,7 @@ public:
     void addImageToItem(const muse::io::path_t& imagePath, EngravingItem* item) override;
 
     void addFiguredBass() override;
+    void addAlterationChord() override;
 
     void addStretch(qreal value) override;
 

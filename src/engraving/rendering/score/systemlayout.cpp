@@ -1383,6 +1383,10 @@ void SystemLayout::layoutSystemElements(System* system, LayoutContext& ctx)
         TLayout::layoutItem(st, ctx);
     }
 
+    for (EngravingItem* chord : elementsToLayout.alterationChords) {
+        TLayout::layoutItem(chord, ctx);
+    }
+
     for (InstrumentChange* ic : elementsToLayout.instrChanges) {
         TLayout::layoutItem(ic, ctx);
     }
@@ -1572,6 +1576,9 @@ void SystemLayout::collectElementsToLayout(Measure* measure, ElementsToLayout& e
                 if (Harmony* h = toFretDiagram(item)->harmony()) {
                     elements.harmonies.push_back(h);
                 }
+                break;
+            case ElementType::ALTERATION_CHORD:
+                elements.alterationChords.push_back(item);
                 break;
             case ElementType::STAFF_TEXT:
             case ElementType::STAVE_SHARING_LABEL:

@@ -65,6 +65,7 @@
 #include "engraving/dom/elementgroup.h"
 #include "engraving/dom/factory.h"
 #include "engraving/dom/figuredbass.h"
+#include "engraving/dom/alterationchord.h"
 #include "engraving/dom/fret.h"
 #include "engraving/dom/gradualtempochange.h"
 #include "engraving/dom/guitarbend.h"
@@ -197,6 +198,10 @@ static PointF bindCursorPosToText(const PointF& cursorPos, const EngravingItem* 
 {
     if (cursorPos.isNull() || !text || !text->isTextBase()) {
         return PointF();
+    }
+
+    if (text->isAlterationChord()) {
+        return cursorPos;
     }
 
     muse::RectF bbox = text->canvasBoundingRect();
@@ -745,7 +750,30 @@ std::vector<EngravingItem*> NotationInteraction::hitElements(const PointF& pos, 
     if (isTextEditingStarted() && page == m_editData.element->findAncestor(ElementType::PAGE)) {
         auto editW = width * 2;
         RectF editHitRect(posOnPage.x() - editW, posOnPage.y() - editW, 2.0 * editW, 2.0 * editW);
-        if (m_editData.element->intersects(editHitRect)) {
+        bool hitEdited = m_editData.element->intersects(editHitRect);
+        if (!hitEdited && m_editData.element->isAlterationChord()) {
+            const mu::engraving::AlterationChord* ac = mu::engraving::toAlterationChord(m_editData.element);
+            const mu::engraving::AlterationChord::LayoutData* l = ac ? ac->ldata() : nullptr;
+            if (l) {
+                PointF clickPosLocal = pos - ac->canvasPos();
+                if (!muse::RealIsNull(ac->textAngle())) {
+                    muse::draw::Transform t;
+                    t.rotate(-ac->textAngle());
+                    clickPosLocal = t.map(clickPosLocal);
+                }
+                if (l->centralRect.contains(clickPosLocal)) {
+                    hitEdited = true;
+                } else {
+                    for (int i = 0; i < mu::engraving::AlterationChord::SLOTS_COUNT; ++i) {
+                        if (l->slotRect[i].contains(clickPosLocal)) {
+                            hitEdited = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if (hitEdited) {
             hitElements.push_back(m_editData.element);
             return hitElements;
         }
@@ -4171,6 +4199,23 @@ void NotationInteraction::editText(QInputMethodEvent* event)
         return;
     }
 
+    if (m_editData.element && m_editData.element->isAlterationChord()) {
+        mu::engraving::AlterationChord* ac = mu::engraving::toAlterationChord(m_editData.element);
+        if (ac && ac->activeSlot() != mu::engraving::AlterationChord::FOCUS_CENTRAL) {
+            if (!event->commitString().isEmpty()) {
+                muse::String str = muse::String::fromQString(event->commitString());
+                score()->startCmd(TranslatableString("undoableAction", "Edit text"));
+                ac->insertText(str);
+                score()->endCmd();
+                m_editData.preeditString.clear();
+                score()->setUpdateAll();
+            }
+            event->accept();
+            notifyAboutTextEditingChanged();
+            return;
+        }
+    }
+
     mu::engraving::TextBase* text = mu::engraving::toTextBase(m_editData.element);
     mu::engraving::TextCursor* cursor = text->cursor();
     String& preeditString = m_editData.preeditString;
@@ -5259,14 +5304,24 @@ void NotationInteraction::pasteSelection(const Fraction& scale)
 void NotationInteraction::pasteIntoTextEdit()
 {
     const QMimeData* mimeData = QGuiApplication::clipboard()->mimeData();
-    if (mimeData->hasFormat(TextEditData::mimeRichTextFormat)) {
+
+    if (m_editData.element && m_editData.element->isAlterationChord()) {
+        mu::engraving::AlterationChord* ac = mu::engraving::toAlterationChord(m_editData.element);
+        if (ac && ac->activeSlot() != mu::engraving::AlterationChord::FOCUS_CENTRAL) {
+            ac->paste(mimeData ? mimeData->text() : QString());
+            notifyAboutTextEditingChanged();
+            return;
+        }
+    }
+
+    if (mimeData && mimeData->hasFormat(TextEditData::mimeRichTextFormat)) {
         const QString txt = QString::fromUtf8(mimeData->data(TextEditData::mimeRichTextFormat));
         toTextBase(m_editData.element)->paste(txt);
         notifyAboutTextEditingChanged();
         return;
     }
 
-    QString clipboardText = mimeData->text();
+    QString clipboardText = mimeData ? mimeData->text() : QString();
     QString textForPaste = clipboardText;
     if ((!clipboardText.startsWith('<') || !clipboardText.contains('>')) && m_editData.element->isLyrics()) {
         textForPaste = extractSyllable(clipboardText);
@@ -6317,6 +6372,21 @@ void NotationInteraction::addFiguredBass()
     if (figuredBass) {
         apply();
         startEditText(figuredBass, PointF());
+        m_selection->notifyAboutSelectionChangedIfNeed();
+    } else {
+        rollback();
+    }
+}
+
+void NotationInteraction::addAlterationChord()
+{
+    startEdit(TranslatableString("undoableAction", "Add alteration chord"));
+    mu::engraving::AlterationChord* chord = score()->addAlterationChord();
+
+    if (chord) {
+        apply();
+        startEditText(chord, PointF());
+        chord->selectAll();
         m_selection->notifyAboutSelectionChangedIfNeed();
     } else {
         rollback();

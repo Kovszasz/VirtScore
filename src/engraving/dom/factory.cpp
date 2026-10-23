@@ -96,6 +96,7 @@
 #include "stafflines.h"
 #include "staffstate.h"
 #include "stafftext.h"
+#include "alterationchord.h"
 #include "stafftypechange.h"
 #include "staffvisibilityindicator.h"
 #include "stavesharinglabel.h"
@@ -197,6 +198,7 @@ EngravingItem* Factory::doCreateItem(ElementType type, DummyParentOr<EngravingIt
     case ElementType::INSTRUMENT_NAME:   return new InstrumentName(parentOfTypeOrDummy<System>(parentItem, dummy));
     case ElementType::STAFF_TEXT:        return new StaffText(parentOfTypeOrDummy<Segment>(parentItem, dummy));
     case ElementType::STAVE_SHARING_LABEL: return new StaveSharingLabel(parentOfTypeOrDummy<Segment>(parentItem, dummy));
+    case ElementType::ALTERATION_CHORD:  return new AlterationChord(parentOfTypeOrDummy<Segment>(parentItem, dummy));
     case ElementType::PLAY_COUNT_TEXT:   return new PlayCountText(parentOfTypeOrDummy<Segment>(parentItem, dummy));
     case ElementType::PLAYTECH_ANNOTATION: return new PlayTechAnnotation(parentOfTypeOrDummy<Segment>(parentItem, dummy));
     case ElementType::CAPO:              return new Capo(parentOfTypeOrDummy<Segment>(parentItem, dummy));
@@ -569,6 +571,13 @@ StaveSharingLabel* Factory::createStaveSharingLabel(DummyParentOr<Segment> paren
     StaveSharingLabel* staveSharingLabel = new StaveSharingLabel(parent, textStyleType);
     staveSharingLabel->setAccessibleEnabled(isAccessibleEnabled);
     return staveSharingLabel;
+}
+
+AlterationChord* Factory::createAlterationChord(DummyParentOr<Segment> parent, TextStyleType textStyleType, bool isAccessibleEnabled)
+{
+    AlterationChord* altChord = new AlterationChord(parent, textStyleType);
+    altChord->setAccessibleEnabled(isAccessibleEnabled);
+    return altChord;
 }
 
 CREATE_ITEM_IMPL(SoundFlag, DummyParentOr<EngravingItem>, isAccessibleEnabled)

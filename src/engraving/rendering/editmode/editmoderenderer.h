@@ -35,6 +35,7 @@ class EngravingItem;
 class EditData;
 
 class BarLine;
+class AlterationChord;
 class Dynamic;
 class SlurTieSegment;
 class TextBase;
@@ -63,6 +64,8 @@ private:
                                    const PaintOptions& opt);
 
     static void drawTextBase(const TextBase* item, muse::draw::Painter* painter, double currentViewScaling, const PaintOptions& opt);
+    static void drawAlterationChord(const AlterationChord* item, muse::draw::Painter* painter, const EditData& ed,
+                                    double currentViewScaling, const PaintOptions& opt);
     static void draw(const TextBlock& textBlock, const TextBase* item, muse::draw::Painter* painter);
     static void draw(const TextFragment& textFragment, const TextBase* item, muse::draw::Painter* painter);
 };

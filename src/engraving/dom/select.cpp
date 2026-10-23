@@ -32,6 +32,7 @@
 #include "rw/rwregister.h"
 
 #include "accidental.h"
+#include "alterationchord.h"
 #include "arpeggio.h"
 #include "articulation.h"
 #include "beam.h"
@@ -1209,6 +1210,9 @@ muse::ByteArray Selection::symbolListMimeData() const
         case ElementType::STAFF_TEXT:
         case ElementType::STAVE_SHARING_LABEL:
             seg = toStaffTextBase(e)->segment();
+            break;
+        case ElementType::ALTERATION_CHORD:
+            seg = toAlterationChord(e)->segment();
             break;
         case ElementType::EXPRESSION:
             seg = toExpression(e)->segment();

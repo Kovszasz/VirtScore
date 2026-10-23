@@ -208,6 +208,7 @@ public:
     MOCK_METHOD(void, addImageToItem, (const muse::io::path_t&, EngravingItem*), (override));
 
     MOCK_METHOD(void, addFiguredBass, (), (override));
+    MOCK_METHOD(void, addAlterationChord, (), (override));
 
     MOCK_METHOD(void, addStretch, (qreal), (override));
 

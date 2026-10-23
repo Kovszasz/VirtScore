@@ -27,6 +27,10 @@
 #include "global/types/ret.h"
 
 #include "engraving/dom/harmony.h"
+#include "engraving/dom/accidental.h"
+#include "engraving/dom/alterationchord.h"
+#include "engraving/dom/factory.h"
+#include "engraving/dom/symbol.h"
 #include "engraving/dom/masterscore.h"
 #include "engraving/dom/note.h"
 #include "engraving/dom/chord.h"
@@ -333,6 +337,7 @@ void NotationActionController::init()
     registerCommand(ADD_LYRICS_COMMAND, [this]() { addText(TextStyleType::LYRICS_ODD); });
     registerCommand(ADD_TEMPO_COMMAND, [this]() { addText(TextStyleType::TEMPO); });
     registerCommand(ADD_FIGURED_BASS_COMMAND, [this]() { addFiguredBass(); });
+    registerCommand(ADD_ALTERATION_CHORD_COMMAND, [this]() { addAlterationChord(); });
 
     // add grace notes commands
     registerCommand(ADD_ACCIACCATURA_COMMAND, &Interaction::addGraceNotesToSelectedNotes, GraceNoteType::ACCIACCATURA);
@@ -1414,12 +1419,40 @@ muse::Ret NotationActionController::removeNote(const muse::rcommand::Params& par
     return muse::make_ok();
 }
 
+// Note-input toolbar symbols become text while editing an alteration chord.
+// Use the same drop/undo path as the symbol palette and never enter note input
+// or seek/play notes for this sheet-only annotation.
+static bool insertAlterationChordToolbarSymbol(const INotationInteractionPtr& interaction, SymbolId symbolId)
+{
+    if (!interaction->isTextEditingStarted()) {
+        return false;
+    }
+    const TextBase* text = interaction->editedText();
+    if (!text || !text->isAlterationChord()) {
+        return false;
+    }
+    EngravingItem* selected = interaction->selection()->element();
+    if (selected == text) {
+        // Clicking a small field selects its contents. Toolbar modifiers append
+        // to that value (e.g. 3 then sharp), rather than replacing the number.
+        engraving::toAlterationChord(selected)->setSlotSelected(false);
+    }
+    std::unique_ptr<engraving::Symbol> symbol(engraving::Factory::createSymbol(text->score()->dummy()));
+    symbol->setSym(symbolId);
+    interaction->applyPaletteElement(symbol.get(), Qt::NoModifier);
+    return true;
+}
+
 void NotationActionController::toggleAccidental(AccidentalType type)
 {
     TRACEFUNC;
 
     INotationInteractionPtr interaction = currentNotationInteraction();
     if (!interaction) {
+        return;
+    }
+
+    if (insertAlterationChordToolbarSymbol(interaction, engraving::Accidental::subtype2symbol(type))) {
         return;
     }
 
@@ -1450,6 +1483,10 @@ void NotationActionController::toggleArticulation(SymbolId articulationSymbolId)
 
     INotationInteractionPtr interaction = currentNotationInteraction();
     if (!interaction) {
+        return;
+    }
+
+    if (insertAlterationChordToolbarSymbol(interaction, articulationSymbolId)) {
         return;
     }
 
@@ -1989,6 +2026,18 @@ void NotationActionController::addFiguredBass()
     }
 
     interaction->addFiguredBass();
+}
+
+void NotationActionController::addAlterationChord()
+{
+    TRACEFUNC;
+
+    auto interaction = currentNotationInteraction();
+    if (!interaction) {
+        return;
+    }
+
+    interaction->addAlterationChord();
 }
 
 void NotationActionController::addGuitarBend(GuitarBendType bendType)

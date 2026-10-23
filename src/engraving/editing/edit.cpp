@@ -77,6 +77,7 @@
 #include "../dom/slur.h"
 #include "../dom/staff.h"
 #include "../dom/stafftext.h"
+#include "../dom/alterationchord.h"
 #include "../dom/stem.h"
 #include "../dom/sticking.h"
 #include "../dom/stringtunings.h"
@@ -919,6 +920,39 @@ TextBase* Score::addText(TextStyleType type, EngravingItem* destinationElement)
     }
 
     return textBox;
+}
+
+AlterationChord* Score::addAlterationChord(EngravingItem* destinationElement)
+{
+    if (!destinationElement) {
+        destinationElement = selection().element();
+    }
+    Segment* seg = nullptr;
+    track_idx_t track = 0;
+    if (destinationElement && destinationElement->isSegment()) {
+        seg = toSegment(destinationElement);
+    } else {
+        ChordRest* cr = chordOrRest(destinationElement);
+        if (!cr) {
+            Segment* s = firstSegment(SegmentType::ChordRest);
+            if (s) {
+                cr = s->nextChordRest(0);
+            }
+        }
+        if (cr) {
+            seg = annotationSegment(cr);
+            track = trackZeroVoice(cr->track());
+        }
+    }
+    if (!seg) {
+        return nullptr;
+    }
+
+    AlterationChord* altChord = Factory::createAlterationChord(seg);
+    altChord->setTrack(track);
+    undoAddElement(altChord);
+    select(altChord, SelectType::SINGLE, 0);
+    return altChord;
 }
 
 //---------------------------------------------------------
@@ -4153,6 +4187,7 @@ void Score::undoAddElement(EngravingItem* element, bool addToLinkedStaves, bool 
             && et != ElementType::EXPRESSION
             && et != ElementType::STAFF_TEXT
             && et != ElementType::STAVE_SHARING_LABEL
+            && et != ElementType::ALTERATION_CHORD
             && et != ElementType::SYSTEM_TEXT
             && et != ElementType::TRIPLET_FEEL
             && et != ElementType::PLAYTECH_ANNOTATION
@@ -4202,6 +4237,7 @@ void Score::undoAddElement(EngravingItem* element, bool addToLinkedStaves, bool 
             ElementType::DYNAMIC,
             ElementType::EXPRESSION,
             ElementType::STAFF_TEXT,
+            ElementType::ALTERATION_CHORD,
             ElementType::PLAYTECH_ANNOTATION,
             ElementType::CAPO,
             ElementType::STRING_TUNINGS,
@@ -4240,6 +4276,7 @@ void Score::undoAddElement(EngravingItem* element, bool addToLinkedStaves, bool 
                 // exclude certain element types except on corresponding staff in part
                 // this should be same list excluded in cloneStaff()
                 case ElementType::STAFF_TEXT:
+                case ElementType::ALTERATION_CHORD:
                 case ElementType::SYSTEM_TEXT:
                 case ElementType::TRIPLET_FEEL:
                 case ElementType::PLAYTECH_ANNOTATION:
@@ -4362,6 +4399,7 @@ void Score::undoAddElement(EngravingItem* element, bool addToLinkedStaves, bool 
                  || element->isExpression()
                  || element->isStaffText()
                  || element->isStaveSharingLabel()
+                 || element->isAlterationChord()
                  || element->isPlayTechAnnotation()
                  || element->isCapo()
                  || element->isStringTunings()

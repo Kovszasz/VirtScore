@@ -77,6 +77,7 @@
 #include "engraving/dom/spacer.h"
 #include "engraving/dom/staff.h"
 #include "engraving/dom/stafftext.h"
+#include "engraving/dom/alterationchord.h"
 #include "engraving/dom/stringtunings.h"
 #include "engraving/dom/systemtext.h"
 #include "engraving/dom/tapping.h"
@@ -1552,6 +1553,10 @@ PalettePtr PaletteCreator::newTextPalette(bool defaultPalette)
     auto rhm = makeElement<RehearsalMark>(paletteScore());
     rhm->setXmlText("B1");
     sp->appendElement(rhm, QT_TRANSLATE_NOOP("palette", "Rehearsal mark"));
+
+    auto altChord = makeElement<AlterationChord>(paletteScore());
+    altChord->setCentralText(u"I");
+    sp->appendElement(altChord, QT_TRANSLATE_NOOP("palette", "Alteration chord"));
 
     struct PlayTechAnnotationInfo {
         const char* xmlText;

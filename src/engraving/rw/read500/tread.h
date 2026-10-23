@@ -45,6 +45,7 @@ class Ambitus;
 class Accidental;
 class MMRestRange;
 class ActionIcon;
+class AlterationChord;
 class Arpeggio;
 class Articulation;
 class Audio;
@@ -307,6 +308,7 @@ public:
     static void read(Staff* s, XmlReader& xml, ReadContext& ctx);
     static void read(StaffState* s, XmlReader& xml, ReadContext& ctx);
     static void read(StaffText* t, XmlReader& xml, ReadContext& ctx);
+    static void read(AlterationChord* t, XmlReader& xml, ReadContext& ctx);
     static void read(StaveSharingLabel* t, XmlReader& xml, ReadContext& ctx);
     static void read(StaffTextBase* t, XmlReader& xml, ReadContext& ctx);
     static void read(StaffType* t, XmlReader& xml, ReadContext& ctx);

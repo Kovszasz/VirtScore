@@ -267,6 +267,7 @@ inline static const muse::rcommand::Command ADD_NASHVILLE_NUMBER_TEXT_COMMAND("c
 inline static const muse::rcommand::Command ADD_LYRICS_COMMAND("command://notation/add-lyrics");
 inline static const muse::rcommand::Command ADD_TEMPO_COMMAND("command://notation/add-tempo");
 inline static const muse::rcommand::Command ADD_FIGURED_BASS_COMMAND("command://notation/add-figured-bass");
+inline static const muse::rcommand::Command ADD_ALTERATION_CHORD_COMMAND("command://notation/add-alteration-chord");
 
 // add grace notes commands
 inline static const muse::rcommand::Command ADD_ACCIACCATURA_COMMAND("command://notation/add-acciaccatura");

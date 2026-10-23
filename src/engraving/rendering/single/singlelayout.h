@@ -34,6 +34,7 @@ class Score;
 
 class Accidental;
 class ActionIcon;
+class AlterationChord;
 class Ambitus;
 class Arpeggio;
 class Articulation;
@@ -222,6 +223,7 @@ public:
     static void layout(SoundFlag* item, const Context& ctx);
     static void layout(Spacer* item, const Context&);
     static void layout(StaffText* item, const Context& ctx);
+    static void layout(AlterationChord* item, const Context& ctx);
     static void layout(StaveSharingLabel* item, const Context& ctx);
     static void layout(StaffTypeChange* item, const Context& ctx);
     static void layout(Stem* item, const Context& ctx);

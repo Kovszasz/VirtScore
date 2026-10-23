@@ -494,6 +494,7 @@ void MeasureRead::readVoice(Measure* measure, XmlReader& e, ReadContext& ctx, in
             }
             segment->add(el);
         } else if (tag == "Sticking"
+                   || tag == "AlterationChord"
                    || tag == "SystemText"
                    || tag == "PlayTechAnnotation"
                    || tag == "Capo"

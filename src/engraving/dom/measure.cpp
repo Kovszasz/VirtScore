@@ -1403,6 +1403,9 @@ bool Measure::acceptDrop(EditData& data) const
         // Always drop to single staff
         return true;
 
+    case ElementType::ALTERATION_CHORD:
+        return first(SegmentType::ChordRest) != nullptr;
+
     case ElementType::STRING_TUNINGS:
         return canAddStringTunings(staffIdx);
 
@@ -1458,6 +1461,18 @@ EngravingItem* Measure::drop(Transaction& tx, EditData& data)
         e->setTrack(0);
         score()->undoAddElement(e);
         return e;
+
+    case ElementType::ALTERATION_CHORD: {
+        Segment* parentSeg = first(SegmentType::ChordRest);
+        if (!parentSeg) {
+            delete e;
+            return nullptr;
+        }
+        e->setOwnershipParent(parentSeg);
+        e->setTrack(staff2track(staffIdx));
+        score()->undoAddElement(e);
+        return e;
+    }
 
     case ElementType::STRING_TUNINGS:
     {

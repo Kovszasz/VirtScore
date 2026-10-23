@@ -1,0 +1,28 @@
+{
+    "name": "VirtScore (C++ / Qt 6)",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "runArgs": ["--shm-size=2g"],
+    "remoteUser": "vscode",
+    "postCreateCommand": "bash .devcontainer/setup.sh",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools",
+                "ms-vscode.cmake-tools",
+                "theqtcompany.qt-qml"
+            ],
+            "settings": {
+                "cmake.generator": "Ninja",
+                "cmake.buildDirectory": "${workspaceFolder}/build/devcontainer",
+                "cmake.configureSettings": {
+                    "CMAKE_BUILD_TYPE": "Debug",
+                    "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+                    "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
+                },
+                "cmake.useCMakePresets": "never"
+            }
+        }
+    }
+}

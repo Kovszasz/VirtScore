@@ -29,6 +29,7 @@
 #include "dom/dynamic.h"
 #include "dom/slurtie.h"
 #include "dom/textbase.h"
+#include "dom/alterationchord.h"
 #include "rendering/score/tdraw.h"
 
 using namespace mu::engraving::rendering::editmode;
@@ -41,6 +42,9 @@ void EditModeRenderer::drawItem(const EngravingItem* item, muse::draw::Painter* 
     switch (item->type()) {
     case ElementType::BAR_LINE:
         drawBarline(item_cast<const BarLine*>(item), painter, ed, currentViewScaling, opt);
+        break;
+    case ElementType::ALTERATION_CHORD:
+        drawAlterationChord(item_cast<const AlterationChord*>(item), painter, ed, currentViewScaling, opt);
         break;
     case ElementType::CAPO:
         drawTextBase(item_cast<const TextBase*>(item), painter, currentViewScaling, opt);
@@ -282,4 +286,99 @@ void EditModeRenderer::draw(const TextFragment& textFragment, const TextBase* it
 {
     painter->setFont(textFragment.font(item));
     painter->drawText(textFragment.pos, textFragment.text);
+}
+
+void EditModeRenderer::drawAlterationChord(const AlterationChord* item, muse::draw::Painter* painter, const EditData& /*ed*/,
+                                           double currentViewScaling, const PaintOptions& opt)
+{
+    const AlterationChord::LayoutData* ldata = item->ldata();
+    if (!ldata) {
+        return;
+    }
+
+    painter->save();
+    painter->translate(item->canvasPos());
+    if (!muse::RealIsNull(item->textAngle())) {
+        painter->rotate(item->textAngle());
+    }
+
+    // 1. Draw central text editing / selection if activeSlot == FOCUS_CENTRAL
+    if (item->activeSlot() == AlterationChord::FOCUS_CENTRAL) {
+        const TextCursor* cursor = item->cursor();
+        if (cursor && cursor->hasSelection()) {
+            painter->setBrush(BrushStyle::NoBrush);
+            painter->setPen(item->textColor(opt));
+            size_t r1 = cursor->selectLine();
+            size_t r2 = cursor->row();
+            size_t c1 = cursor->selectColumn();
+            size_t c2 = cursor->column();
+
+            TextBase::sort(r1, c1, r2, c2);
+            size_t row = 0;
+            for (const TextBlock& t : ldata->blocks) {
+                if (row >= r1 && row <= r2) {
+                    RectF br;
+                    if (row == r1 && r1 == r2) {
+                        br = t.boundingRect(static_cast<int>(c1), static_cast<int>(c2), item);
+                    } else if (row == r1) {
+                        br = t.boundingRect(static_cast<int>(c1), static_cast<int>(t.columns()), item);
+                    } else if (row == r2) {
+                        br = t.boundingRect(0, static_cast<int>(c2), item);
+                    } else {
+                        br = t.boundingRect();
+                    }
+                    br.translate(0.0, t.y());
+                    drawTextBaseSelection(item, painter, br);
+                }
+                ++row;
+            }
+        }
+
+        if (cursor && cursor->visible()) {
+            painter->setBrush(item->curColor(opt));
+            Pen pen(item->curColor(opt));
+            pen.setJoinStyle(PenJoinStyle::MiterJoin);
+            painter->setPen(pen);
+            painter->drawRect(cursor->cursorRect());
+        }
+
+        // Active outline around central text
+        painter->setPen(Pen(item->configuration()->frameColor(), 2.0 / currentViewScaling));
+        painter->setBrush(BrushStyle::NoBrush);
+        painter->drawRect(ldata->centralRect);
+    } else {
+        // Subtle outline around central text when slot is active
+        Color subtleColor = item->configuration()->frameColor();
+        subtleColor.setAlpha(100);
+        painter->setPen(Pen(subtleColor, 1.0 / currentViewScaling, PenStyle::DashLine));
+        painter->setBrush(BrushStyle::NoBrush);
+        painter->drawRect(ldata->centralRect);
+    }
+
+    // 2. Draw 12 slots with field outlines / selection only (no text labels, avoiding double drawing with TDraw)
+    for (int i = 0; i < AlterationChord::SLOTS_COUNT; ++i) {
+        const RectF& r = ldata->slotRect[i];
+        bool isActive = (item->activeSlot() == i);
+
+        if (isActive) {
+            Color selBg = item->configuration()->selectionColor();
+            selBg.setAlpha(60);
+            painter->setBrush(Brush(selBg));
+            painter->setPen(Pen(item->configuration()->selectionColor(), 2.0 / currentViewScaling));
+            painter->drawRect(r);
+            if (!item->isSlotSelected()) {
+                painter->setBrush(item->configuration()->selectionColor());
+                painter->drawRect(item->slotCursorRect());
+            }
+        } else {
+            Color boxColor = item->configuration()->frameColor();
+            boxColor.setAlpha(item->slotText(i).isEmpty() ? 120 : 180);
+            painter->setBrush(BrushStyle::NoBrush);
+            painter->setPen(Pen(boxColor, 1.0 / currentViewScaling,
+                                item->slotText(i).isEmpty() ? PenStyle::DashLine : PenStyle::SolidLine));
+            painter->drawRect(r);
+        }
+    }
+
+    painter->restore();
 }

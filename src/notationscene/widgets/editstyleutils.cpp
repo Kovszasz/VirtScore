@@ -175,6 +175,7 @@ QString EditStyleUtils::pageCodeForElement(const EngravingItem* element)
 
     case ElementType::PLAYTECH_ANNOTATION:
     case ElementType::STAFF_TEXT:
+    case ElementType::ALTERATION_CHORD:
         return "staff-text";
 
     case ElementType::STAVE_SHARING_LABEL:

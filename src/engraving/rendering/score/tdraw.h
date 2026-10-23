@@ -26,6 +26,7 @@
 namespace mu::engraving {
 class Accidental;
 class ActionIcon;
+class AlterationChord;
 class Ambitus;
 class Arpeggio;
 class Articulation;
@@ -289,6 +290,7 @@ private:
     static void draw(const StaffLines* item, muse::draw::Painter* painter, const PaintOptions& opt);
     static void draw(const StaffState* item, muse::draw::Painter* painter, const PaintOptions& opt);
     static void draw(const StaffText* item, muse::draw::Painter* painter, const PaintOptions& opt);
+    static void draw(const AlterationChord* item, muse::draw::Painter* painter, const PaintOptions& opt);
     static void draw(const StaveSharingLabel* item, muse::draw::Painter* painter, const PaintOptions& opt);
     static void draw(const StaffTypeChange* item, muse::draw::Painter* painter, const PaintOptions& opt);
     static void draw(const Stem* item, muse::draw::Painter* painter, const PaintOptions& opt);

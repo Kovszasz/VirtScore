@@ -85,7 +85,8 @@ concurrency:
 
 jobs:
   build:
-    if: inputs.platforms == '' || contains(inputs.platforms, 'linux_x64') || contains(inputs.platforms, 'linux_arm64')
+    # Disabled for this fork; Windows installers are built by windows_release.yml.
+    if: ${{ false }}
     runs-on: ${{ matrix.runs-on }}
     strategy:
       fail-fast: false

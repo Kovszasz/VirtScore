@@ -82,6 +82,7 @@
 #include "dom/spacer.h"
 #include "dom/staff.h"
 #include "dom/stafftext.h"
+#include "dom/alterationchord.h"
 #include "dom/stafftypechange.h"
 #include "dom/sticking.h"
 #include "dom/stringtunings.h"
@@ -217,6 +218,8 @@ void SingleLayout::layoutItem(EngravingItem* item)
     case ElementType::SPACER:       layout(toSpacer(item), ctx);
         break;
     case ElementType::STAFF_TEXT:   layout(toStaffText(item), ctx);
+        break;
+    case ElementType::ALTERATION_CHORD: layout(toAlterationChord(item), ctx);
         break;
     case ElementType::STAVE_SHARING_LABEL: layout(toStaveSharingLabel(item), ctx);
         break;
@@ -1621,6 +1624,24 @@ void SingleLayout::layout(StaffText* item, const Context& ctx)
             }
         }
     }
+}
+
+void SingleLayout::layout(AlterationChord* item, const Context& ctx)
+{
+    AlterationChord::LayoutData* ldata = item->mutldata();
+    layoutTextBase(item, ctx, ldata);
+
+    AlterationChord::calculateSlotsLayout(ldata, item->spatium(), item);
+
+    Shape s = ldata->shape();
+    s.add(ldata->centralRect);
+    for (int i = 0; i < AlterationChord::SLOTS_COUNT; ++i) {
+        if (!item->slotText(i).isEmpty()) {
+            s.add(ldata->slotRect[i]);
+        }
+    }
+    ldata->setShape(s);
+    ldata->setBbox(s.bbox());
 }
 
 void SingleLayout::layout(StaveSharingLabel* item, const Context& ctx)

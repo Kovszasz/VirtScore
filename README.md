@@ -39,6 +39,30 @@ See [Code Structure on Wiki](https://github.com/musescore/MuseScore/wiki/CodeStr
 
 **Read the [Compilation section](https://github.com/musescore/MuseScore/wiki/Set-up-developer-environment) of the [MuseScore Wiki](https://github.com/musescore/MuseScore/wiki) for a complete build walkthrough and a list of dependencies.**
 
+### Development container
+
+A ready-to-use C++/Qt environment is available in
+[`.devcontainer`](.devcontainer/README.md). Open this repository with VS Code's
+Dev Containers extension, or use `@devcontainers/cli`.
+
+### Alteration chord notation
+
+Use **Add → Text → Alteration chord** for a central label with twelve surrounding
+fields, available only as sheet notation. See the [editing and testing guide](docs/alteration-chord-notation.md).
+
+### Windows installers
+
+The **Windows release** workflow builds an x64 MSI on branch and tag pushes,
+and supports **Actions → Windows release → Run workflow** (select a branch or tag).
+Download the `VirtScore-windows-x64` artifact from a successful run and extract
+its MSI and `SHA256SUMS.txt`. Artifacts are retained for 30 days.
+
+Tag runs also upload the installer to the corresponding GitHub Release. If the
+release does not exist, the workflow creates a prerelease; existing release notes
+and status are preserved. Branch runs publish workflow artifacts.
+See [Windows release instructions](docs/windows-release.md) for toolchain,
+permissions, verification, and local packaging commands.
+
 ### Getting sources
 
 If using git to download repo of entire code history, type:

@@ -709,6 +709,7 @@ void Segment::add(EngravingItem* el)
     case ElementType::SYMBOL:
     case ElementType::STAFF_TEXT:
     case ElementType::STAVE_SHARING_LABEL:
+    case ElementType::ALTERATION_CHORD:
     case ElementType::SYSTEM_TEXT:
     case ElementType::TRIPLET_FEEL:
     case ElementType::PLAYTECH_ANNOTATION:
@@ -919,6 +920,7 @@ void Segment::remove(EngravingItem* el)
     case ElementType::REHEARSAL_MARK:
     case ElementType::STAFF_TEXT:
     case ElementType::STAVE_SHARING_LABEL:
+    case ElementType::ALTERATION_CHORD:
     case ElementType::SYSTEM_TEXT:
     case ElementType::TRIPLET_FEEL:
     case ElementType::PLAYTECH_ANNOTATION:
@@ -1998,6 +2000,7 @@ EngravingItem* Segment::nextElement(staff_idx_t activeStaff)
     case ElementType::TEMPO_TEXT:
     case ElementType::STAFF_TEXT:
     case ElementType::STAVE_SHARING_LABEL:
+    case ElementType::ALTERATION_CHORD:
     case ElementType::SYSTEM_TEXT:
     case ElementType::TRIPLET_FEEL:
     case ElementType::PLAYTECH_ANNOTATION:
@@ -2226,6 +2229,7 @@ EngravingItem* Segment::prevElement(staff_idx_t activeStaff)
     case ElementType::TEMPO_TEXT:
     case ElementType::STAFF_TEXT:
     case ElementType::STAVE_SHARING_LABEL:
+    case ElementType::ALTERATION_CHORD:
     case ElementType::SOUND_FLAG:
     case ElementType::SYSTEM_TEXT:
     case ElementType::TRIPLET_FEEL:
@@ -2723,6 +2727,7 @@ void Segment::createShape(staff_idx_t staffIdx)
                    && !e->isInstrumentChange()
                    && !e->isArticulationFamily()
                    && !e->isStaffText()
+                   && !e->isAlterationChord()
                    && !e->isHarpPedalDiagram()
                    && !e->isPlayTechAnnotation()
                    && !e->isCapo()

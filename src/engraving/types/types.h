@@ -222,6 +222,9 @@ enum class ElementType : unsigned char {
     ROOT_ITEM,
     DUMMY,
 
+    // Append new types to preserve existing plugin element IDs.
+    ALTERATION_CHORD,
+
     MAXTYPE
 };
 
@@ -310,6 +313,7 @@ constexpr bool autoplaceAppliesToType(ElementType type)
     case ElementType::STAFF_TEXT:
     case ElementType::SYSTEM_TEXT:
     case ElementType::STAVE_SHARING_LABEL:
+    case ElementType::ALTERATION_CHORD:
     case ElementType::PLAY_COUNT_TEXT:
     case ElementType::PLAYTECH_ANNOTATION:
     case ElementType::CAPO:
@@ -338,6 +342,7 @@ const static std::unordered_set<ElementType> TEXTBASE_TYPES {
     ElementType::JUMP,
     ElementType::STAFF_TEXT,
     ElementType::STAVE_SHARING_LABEL,
+    ElementType::ALTERATION_CHORD,
     ElementType::SYSTEM_TEXT,
     ElementType::TRIPLET_FEEL,
     ElementType::PLAY_COUNT_TEXT,

@@ -32,6 +32,7 @@
 
 #include "../dom/fret.h"
 #include "../dom/lyrics.h"
+#include "../dom/alterationchord.h"
 #include "../dom/masterscore.h"
 #include "../dom/score.h"
 #include "../dom/symbol.h"
@@ -178,7 +179,18 @@ void TextBase::endEdit(EditData& ed)
     // TBox'es manage their Text themselves and are not removed if text is empty
     const bool removeTextIfEmpty = !(ownershipParent() && ownershipParent()->isTBox());
 
-    if (actualPlainText.isEmpty() && removeTextIfEmpty) {
+    bool hasSlots = false;
+    if (isAlterationChord()) {
+        const AlterationChord* ac = toAlterationChord(this);
+        for (int i = 0; i < AlterationChord::SLOTS_COUNT; ++i) {
+            if (!ac->slotText(i).isEmpty()) {
+                hasSlots = true;
+                break;
+            }
+        }
+    }
+
+    if (actualPlainText.isEmpty() && removeTextIfEmpty && !hasSlots) {
         LOGD("actual text is empty");
 
         if (newlyAdded) {

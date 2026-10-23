@@ -162,6 +162,7 @@ bool ChordRest::acceptDrop(EditData& data) const
     case ElementType::SYSTEM_TEXT:
     case ElementType::TRIPLET_FEEL:
     case ElementType::STAFF_TEXT:
+    case ElementType::ALTERATION_CHORD:
     case ElementType::PLAYTECH_ANNOTATION:
     case ElementType::CAPO:
     case ElementType::BAR_LINE:
@@ -337,6 +338,7 @@ EngravingItem* ChordRest::drop(Transaction& tx, EditData& data)
         [[fallthrough]];
     case ElementType::TEXT:
     case ElementType::STAFF_TEXT:
+    case ElementType::ALTERATION_CHORD:
     case ElementType::SYSTEM_TEXT:
     case ElementType::TRIPLET_FEEL:
     case ElementType::PLAYTECH_ANNOTATION:

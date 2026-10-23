@@ -80,6 +80,8 @@ env:
 
 jobs:
   macos_universal:
+    # Disabled for this fork; Windows installers are built by windows_release.yml.
+    if: ${{ false }}
     runs-on: xcode-27
     steps:
     - name: Clone repository
