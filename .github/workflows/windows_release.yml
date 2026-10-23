@@ -156,8 +156,17 @@ jobs:
           }
           $exe = Get-ChildItem "$installDir/bin" -Filter 'MuseScoreStudio*.exe' | Select-Object -First 1
           if (!$exe) { throw 'Installed application executable missing' }
-          # This fresh runner has no build-time Qt installation in PATH.
-          $env:QT_QPA_PLATFORM = 'offscreen'
+          $windowsPlatformPlugin = Join-Path $exe.DirectoryName 'platforms/qwindows.dll'
+          if (!(Test-Path $windowsPlatformPlugin)) {
+            throw "Installed Windows Qt platform plugin missing: $windowsPlatformPlugin"
+          }
+          # Match the runtime shipped in the MSI. Requesting offscreen here loads
+          # qoffscreen.dll, which is not deployed, before --version is processed.
+          $env:QT_QPA_PLATFORM = 'windows'
+          $env:QT_QPA_PLATFORM_PLUGIN_PATH = Join-Path $exe.DirectoryName 'platforms'
+          # GUI-subsystem Qt apps otherwise send early plugin errors to the debugger.
+          $env:QT_FORCE_STDERR_LOGGING = '1'
+          $env:QT_DEBUG_PLUGINS = '1'
           # Qt otherwise may display --version in a native Windows message box.
           # https://doc.qt.io/qt-6/qcommandlineparser.html#showMessageAndExit
           $env:QT_COMMAND_LINE_PARSER_NO_GUI_MESSAGE_BOXES = '1'

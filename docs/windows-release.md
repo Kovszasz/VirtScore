@@ -80,11 +80,21 @@ cpack --config build/windows-release/CPackConfig.cmake -G WIX -B build.artifacts
 
 The explicit WiX root overrides the packaging file's legacy WiX 3.11 default.
 The workflow checks for exactly one MSI, writes a SHA-256 checksum, installs it
-silently in a temporary directory, and invokes the installed program with
-`--version` on the fresh verification runner. The check redirects stdout/stderr,
-requires a successful exit and version output, and sets
+silently in a temporary directory, checks that `platforms/qwindows.dll` was
+deployed alongside the executable, and invokes the installed program with
+`--version` on the fresh verification runner using the packaged `windows` Qt
+platform plugin (`windeployqt` does not package `qoffscreen.dll`). The check
+redirects stdout/stderr, requires a successful exit and version output, and sets
 `QT_COMMAND_LINE_PARSER_NO_GUI_MESSAGE_BOXES=1` so Qt cannot wait for a version
 message box to be dismissed in unattended CI. See the
 [Qt command-line parser documentation](https://doc.qt.io/qt-6/qcommandlineparser.html#showMessageAndExit).
-This smoke check validates packaged startup; interactive notation behavior still requires score tests and
-manual review. The Linux devcontainer cannot execute this Windows build.
+The failed verification in run 39838373799 requested `offscreen`, while its MSI
+log lists `qwindows.dll` and no `qoffscreen.dll`. The verifier now explicitly
+selects `windows` and the installed `bin/platforms` directory, so an inherited
+platform setting cannot recreate that mismatch. `QT_FORCE_STDERR_LOGGING=1` and
+`QT_DEBUG_PLUGINS=1` capture early Qt/plugin errors in the uploaded stderr log.
+Rerunning an old failed job uses its original workflow; push this fix and verify
+the new run instead.
+
+This smoke check validates packaged startup; interactive notation behavior still
+requires score tests and manual review. The Linux devcontainer cannot execute this Windows build.
