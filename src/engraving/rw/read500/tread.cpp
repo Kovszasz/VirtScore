@@ -737,13 +737,14 @@ void TRead::read(StaffText* t, XmlReader& xml, ReadContext& ctx)
 
 void TRead::read(AlterationChord* t, XmlReader& xml, ReadContext& ctx)
 {
+    std::array<String, 12> savedSlots;
     while (xml.readNextStartElement()) {
         const AsciiStringView tag(xml.name());
         bool handledSlot = false;
-        for (int i = 0; i < AlterationChord::SLOTS_COUNT; ++i) {
+        for (int i = 0; i < static_cast<int>(savedSlots.size()); ++i) {
             std::string slotTag = "slot" + std::to_string(i);
             if (tag == slotTag) {
-                t->setSlotText(i, xml.readText());
+                savedSlots[i] = xml.readText();
                 handledSlot = true;
                 break;
             }
@@ -755,6 +756,12 @@ void TRead::read(AlterationChord* t, XmlReader& xml, ReadContext& ctx)
             xml.unknown();
         }
     }
+    for (int i = 0; i < AlterationChord::SLOTS_COUNT; ++i) {
+        t->setSlotText(i, savedSlots[AlterationChord::XML_SLOT_IDS[i]]);
+    }
+    // Merge the former pairs in their visual left-to-right order.
+    t->setSlotText(static_cast<int>(AlterationSlot::Top), savedSlots[1] + savedSlots[2]);
+    t->setSlotText(static_cast<int>(AlterationSlot::Bottom), savedSlots[8] + savedSlots[7]);
 }
 
 void TRead::read(StaveSharingLabel* t, XmlReader& xml, ReadContext& ctx)

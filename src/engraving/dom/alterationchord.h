@@ -32,25 +32,23 @@ class Segment;
 
 enum class AlterationSlot : int {
     TopLeft = 0,
-    Top1 = 1,
-    Top2 = 2,
-    TopRight = 3,
-    Right1 = 4,
-    Right2 = 5,
-    BottomRight = 6,
-    Bottom2 = 7,
-    Bottom1 = 8,
-    BottomLeft = 9,
-    Left2 = 10,
-    Left1 = 11,
-    COUNT = 12
+    Top = 1,
+    TopRight = 2,
+    Right1 = 3,
+    Right2 = 4,
+    BottomRight = 5,
+    Bottom = 6,
+    BottomLeft = 7,
+    Left2 = 8,
+    Left1 = 9,
+    COUNT = 10
 };
 
 //---------------------------------------------------------
 //   AlterationChord
 //   Native sheet-only alteration chord annotation with central
-//   larger arbitrary text (default I or IV) and 12 smaller string slots:
-//   2 centered on each edge + each corner.
+//   larger arbitrary text (default I or IV) and 10 smaller string slots:
+//   1 above/below, 2 on each side, and each corner.
 //---------------------------------------------------------
 
 class AlterationChord final : public TextBase
@@ -60,7 +58,9 @@ class AlterationChord final : public TextBase
 
 public:
     static constexpr int FOCUS_CENTRAL = -1;
-    static constexpr int SLOTS_COUNT = 12;
+    static constexpr int SLOTS_COUNT = 10;
+    // Keep native XML field IDs stable for scores saved with the twelve-field layout.
+    static constexpr std::array<int, SLOTS_COUNT> XML_SLOT_IDS { 0, 1, 3, 4, 5, 6, 8, 9, 10, 11 };
 
     AlterationChord(DummyParentOr<Segment> parent, TextStyleType tid = TextStyleType::STAFF);
     AlterationChord(const AlterationChord& other);

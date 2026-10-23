@@ -47,7 +47,7 @@ Dev Containers extension, or use `@devcontainers/cli`.
 
 ### Alteration chord notation
 
-Use **Add → Text → Alteration chord** for a central label with twelve surrounding
+Use **Add → Text → Alteration chord** for a central label with ten surrounding
 fields, available only as sheet notation. See the [editing and testing guide](docs/alteration-chord-notation.md).
 
 ### Windows installers

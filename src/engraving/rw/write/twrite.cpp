@@ -3023,7 +3023,7 @@ void TWrite::write(const AlterationChord* item, XmlWriter& xml, WriteContext& ct
     for (int i = 0; i < AlterationChord::SLOTS_COUNT; ++i) {
         const String& s = item->slotText(i);
         if (!s.isEmpty()) {
-            std::string slotTag = "slot" + std::to_string(i);
+            std::string slotTag = "slot" + std::to_string(AlterationChord::XML_SLOT_IDS[i]);
             xml.tag(slotTag.c_str(), s);
         }
     }

@@ -132,8 +132,8 @@ TEST_F(Engraving_AlterationChordRenderingTests, PrintOmitsEmptySlotsAndPlacehold
 
 TEST_F(Engraving_AlterationChordRenderingTests, PrintDrawsEachLabelOnceInSmallerFont)
 {
-    chord->setSlotText(2, u"6♯");
-    chord->setSlotText(8, u"♭");
+    chord->setSlotText(1, u"6♯");
+    chord->setSlotText(6, u"♭");
     layout();
     const PaintSummary result = paintAnnotation(chord.get(), false);
     ASSERT_EQ(result.texts.size(), 3u);
@@ -147,26 +147,26 @@ TEST_F(Engraving_AlterationChordRenderingTests, PrintDrawsEachLabelOnceInSmaller
 
 TEST_F(Engraving_AlterationChordRenderingTests, EditOverlayAddsBoxesWithoutDuplicatingLabels)
 {
-    chord->setSlotText(2, u"6♯");
+    chord->setSlotText(1, u"6♯");
     layout();
-    chord->setActiveSlot(2);
+    chord->setActiveSlot(1);
     const PaintSummary result = paintAnnotation(chord.get(), true);
     ASSERT_EQ(result.texts.size(), 2u);
     EXPECT_EQ(result.texts[0].text, u"IV");
     EXPECT_EQ(result.texts[1].text, u"6♯");
-    EXPECT_GE(result.paths, 12u);
+    EXPECT_GE(result.paths, static_cast<size_t>(AlterationChord::SLOTS_COUNT));
 }
 
 TEST_F(Engraving_AlterationChordRenderingTests, RotatedOverlayTracksLabelsAndRestoresPainter)
 {
-    chord->setSlotText(2, u"6♯");
+    chord->setSlotText(1, u"6♯");
     chord->setTextAngle(27.0);
     layout();
     chord->setPos(75.0, 45.0);
-    chord->setActiveSlot(2);
+    chord->setActiveSlot(1);
     const PaintSummary result = paintAnnotation(chord.get(), true);
     ASSERT_EQ(result.texts.size(), 2u);
-    ASSERT_GE(result.pathTransforms.size(), 12u);
+    ASSERT_GE(result.pathTransforms.size(), static_cast<size_t>(AlterationChord::SLOTS_COUNT));
     for (const Transform& transform : result.pathTransforms) {
         EXPECT_EQ(transform, result.texts[1].transform);
     }
@@ -176,9 +176,9 @@ TEST_F(Engraving_AlterationChordRenderingTests, RotatedOverlayTracksLabelsAndRes
 TEST_F(Engraving_AlterationChordRenderingTests, MusicalSymbolAndDigitUseTheirRespectiveFonts)
 {
     const String sharp = score->engravingFont()->toString(SymId::accidentalSharp);
-    chord->setSlotText(4, sharp + u"6");
+    chord->setSlotText(3, sharp + u"6");
     layout();
-    const auto& runs = chord->ldata()->slotTextRuns[4];
+    const auto& runs = chord->ldata()->slotTextRuns[3];
     ASSERT_EQ(runs.size(), 2u);
     EXPECT_EQ(runs[0].text, sharp);
     EXPECT_EQ(runs[1].text, u"6");

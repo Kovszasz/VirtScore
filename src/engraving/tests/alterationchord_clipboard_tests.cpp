@@ -52,10 +52,10 @@ TEST(Engraving_AlterationChordClipboardTests, SymbolListPastePreservesFieldsAndU
     ASSERT_NE(first, nullptr);
     ASSERT_NE(second, nullptr);
     first->setCentralText(u"IV");
-    first->setSlotText(2, u"6♯");
-    first->setSlotText(8, u"♭");
+    first->setSlotText(1, u"6♯");
+    first->setSlotText(6, u"♭");
     second->setCentralText(u"V");
-    second->setSlotText(3, u"<7&>");
+    second->setSlotText(2, u"<7&>");
     score->endCmd();
 
     score->select(first, SelectType::SINGLE);
@@ -91,11 +91,11 @@ TEST(Engraving_AlterationChordClipboardTests, SymbolListPastePreservesFieldsAndU
         EXPECT_NE(chord, second);
         if (chord->centralText() == u"IV") {
             foundIV = true;
-            EXPECT_EQ(chord->slotText(2), u"6♯");
-            EXPECT_EQ(chord->slotText(8), u"♭");
+            EXPECT_EQ(chord->slotText(1), u"6♯");
+            EXPECT_EQ(chord->slotText(6), u"♭");
         } else if (chord->centralText() == u"V") {
             foundV = true;
-            EXPECT_EQ(chord->slotText(3), u"<7&>");
+            EXPECT_EQ(chord->slotText(2), u"<7&>");
         }
     }
     EXPECT_TRUE(foundIV);
@@ -103,8 +103,8 @@ TEST(Engraving_AlterationChordClipboardTests, SymbolListPastePreservesFieldsAndU
 
     score->undoStack()->undo(nullptr);
     EXPECT_TRUE(pasted().empty());
-    EXPECT_EQ(first->slotText(2), u"6♯");
-    EXPECT_EQ(second->slotText(3), u"<7&>");
+    EXPECT_EQ(first->slotText(1), u"6♯");
+    EXPECT_EQ(second->slotText(2), u"<7&>");
     score->undoStack()->redo();
     EXPECT_EQ(pasted().size(), 2u);
 }

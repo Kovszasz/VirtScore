@@ -1,6 +1,6 @@
 # Alteration chord notation
 
-An alteration chord is a score annotation with a larger central label and twelve
+An alteration chord is a score annotation with a larger central label and ten
 smaller labels around it. It is a dedicated engraving element derived from
 `TextBase`, separate from playable chord symbols, staff-text sound flags, and
 figured bass. It creates no notes, MIDI events, or audio links.
@@ -13,7 +13,7 @@ palette. The default central label is `I`; replace it with `IV`, another Roman
 numeral, or arbitrary text.
 
 Double-click an existing annotation or select it and press Enter to edit it.
-Twelve field outlines appear while editing. Click a field or use Tab and
+Ten field outlines appear while editing. Click a field or use Tab and
 Shift+Tab to move through the central text and surrounding fields. The active
 field is highlighted. Surrounding fields preserve their text when focused. Tab
 places the cursor at the end; clicking places it near the clicked character.
@@ -27,16 +27,17 @@ Undo and redo use the score's normal commands.
 The surrounding fields are indexed clockwise, starting at the upper-left corner:
 
 ```text
-             0       1       2       3
+             0           1           2
 
-            11      central           4
-            10       text             5
+             9        central        3
+             8         text          4
 
-             9       8       7       6
+             7           6           5
 ```
 
-Fields 0, 3, 6, and 9 are the corners. Fields 1–2, 4–5, 7–8, and 10–11 are the
-two fields on each edge. Each surrounding label uses 70% of the central font
+Fields 0, 2, 5, and 7 are the corners. Fields 1 and 6 are the single centered
+fields above and below the main character. Fields 3–4 and 8–9 are the pairs on
+the right and left edges. Each surrounding label uses 70% of the central font
 size. Values such as `3`, `6♯`, and `♭` can reproduce the supplied score example.
 
 Placeholder outlines belong to the editing overlay. They are absent from normal
@@ -47,7 +48,7 @@ Surrounding fields sit close to the central glyph, with a small gap of 0.05
 staff spaces when space permits. Top labels align at their bottom edge and
 bottom labels at their top edge.
 Corner boxes share columns with side boxes, and the central box fits the visible
-characters closely. Field outlines adapt to their text while keeping all twelve
+characters closely. Field outlines adapt to their text while keeping all ten
 fields individually selectable. The Unicode/symbol palette inserts into the selected field, replacing selected
 field text or inserting at the cursor. While editing an alteration chord, the top
 note-input toolbar's accidental and articulation buttons insert their glyphs
@@ -61,12 +62,16 @@ the score's musical text font; letters and numbers keep the annotation text font
 ## Storage and compatibility
 
 Scores save the element as `<AlterationChord>` with normal text/engraving
-properties and `<slot0>` through `<slot11>` for nonempty surrounding fields:
+properties. Native XML retains the original field IDs: `slot0`, `slot1`,
+`slot3`, `slot4`, `slot5`, `slot6`, `slot8`, `slot9`, `slot10`, and `slot11`.
+On opening older scores, the two top values (`slot1` + `slot2`) and the two
+bottom values (`slot8` + `slot7`) are joined in visual left-to-right order into
+the new top and bottom fields; other positions keep their values:
 
 ```xml
 <AlterationChord>
   <text>IV</text>
-  <slot2>6♯</slot2>
+  <slot1>6♯</slot1>
   <slot8>♭</slot8>
 </AlterationChord>
 ```
@@ -95,7 +100,7 @@ MuseScoreStudio --parallel 2`.
 
 The tests are registered in the existing engraving suite and run through the
 repository's unit-test workflow. For manual review, add `IV` beneath a staff,
-enter different values in all twelve fields, leave some empty, reopen the score,
+enter different values in all ten fields, leave some empty, reopen the score,
 and compare the score with a PDF/SVG export. Check keyboard and mouse field
 navigation, copy/paste, and undo after leaving edit mode.
 

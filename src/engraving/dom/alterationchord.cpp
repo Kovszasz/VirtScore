@@ -568,20 +568,20 @@ void AlterationChord::calculateSlotsLayout(LayoutData* ldata, double sp, const A
     ldata->slotSize = slotSize;
     double rowHeight = 0.65 * sp;
     double columnWidth = 0.65 * sp;
-    for (int i : { 0, 1, 2, 3, 6, 7, 8, 9 }) {
+    for (int i : { 0, 1, 2, 5, 6, 7 }) {
         rowHeight = std::max(rowHeight, textBounds[i].height() + padding);
     }
-    for (int i : { 0, 3, 4, 5, 6, 9, 10, 11 }) {
+    for (int i : { 0, 2, 3, 4, 5, 7, 8, 9 }) {
         columnWidth = std::max(columnWidth, textBounds[i].width() + padding);
     }
 
-    double topWidth = 0.325 * sp;
-    for (int i : { 1, 2, 7, 8 }) {
+    double topWidth = 0.65 * sp;
+    for (int i : { 1, 6 }) {
         topWidth = std::max(topWidth, textBounds[i].width() + padding);
     }
-    double centralW = std::max(2.0 * topWidth, cbb.width() + 2.0 * padding);
+    double centralW = std::max(topWidth, cbb.width() + 2.0 * padding);
     double sideHeight = 0.325 * sp;
-    for (int i : { 4, 5, 10, 11 }) {
+    for (int i : { 3, 4, 8, 9 }) {
         sideHeight = std::max(sideHeight, textBounds[i].height() + padding);
     }
     double centralH = std::max(2.0 * sideHeight, cbb.height() + 2.0 * padding);
@@ -591,44 +591,42 @@ void AlterationChord::calculateSlotsLayout(LayoutData* ldata, double sp, const A
     RectF centralRect(cx - centralW / 2.0, cy - centralH / 2.0, centralW, centralH);
     ldata->centralRect = centralRect;
 
-    // Corners share columns with the side fields. Top/bottom fields split the
-    // central width, so wide side text cannot push corners out of alignment.
+    // Corners share columns with the side fields; top and bottom each have
+    // one field spanning the central width.
     const double leftCorner = centralRect.left() - columnWidth;
     const double rightCorner = centralRect.right();
 
-    // Top row: 0=TopLeft, 1=Top1, 2=Top2, 3=TopRight
+    // Top row: 0=TopLeft, 1=Top, 2=TopRight
     ldata->slotRect[0] = RectF(leftCorner, centralRect.top() - rowHeight, columnWidth, rowHeight);
-    ldata->slotRect[1] = RectF(centralRect.left(), centralRect.top() - rowHeight, centralW / 2.0, rowHeight);
-    ldata->slotRect[2] = RectF(cx, centralRect.top() - rowHeight, centralW / 2.0, rowHeight);
-    ldata->slotRect[3] = RectF(rightCorner, centralRect.top() - rowHeight, columnWidth, rowHeight);
+    ldata->slotRect[1] = RectF(centralRect.left(), centralRect.top() - rowHeight, centralW, rowHeight);
+    ldata->slotRect[2] = RectF(rightCorner, centralRect.top() - rowHeight, columnWidth, rowHeight);
 
-    // Right column: 4=Right1, 5=Right2
-    ldata->slotRect[4] = RectF(centralRect.right(), centralRect.top(), columnWidth, centralH / 2.0);
-    ldata->slotRect[5] = RectF(centralRect.right(), centralRect.center().y(), columnWidth, centralH / 2.0);
+    // Right column: 3=Right1, 4=Right2
+    ldata->slotRect[3] = RectF(centralRect.right(), centralRect.top(), columnWidth, centralH / 2.0);
+    ldata->slotRect[4] = RectF(centralRect.right(), centralRect.center().y(), columnWidth, centralH / 2.0);
 
-    // Bottom row: 6=BottomRight, 7=Bottom2, 8=Bottom1, 9=BottomLeft
-    ldata->slotRect[6] = RectF(rightCorner, centralRect.bottom(), columnWidth, rowHeight);
-    ldata->slotRect[7] = RectF(cx, centralRect.bottom(), centralW / 2.0, rowHeight);
-    ldata->slotRect[8] = RectF(centralRect.left(), centralRect.bottom(), centralW / 2.0, rowHeight);
-    ldata->slotRect[9] = RectF(leftCorner, centralRect.bottom(), columnWidth, rowHeight);
+    // Bottom row: 5=BottomRight, 6=Bottom, 7=BottomLeft
+    ldata->slotRect[5] = RectF(rightCorner, centralRect.bottom(), columnWidth, rowHeight);
+    ldata->slotRect[6] = RectF(centralRect.left(), centralRect.bottom(), centralW, rowHeight);
+    ldata->slotRect[7] = RectF(leftCorner, centralRect.bottom(), columnWidth, rowHeight);
 
-    // Left column: 10=Left2, 11=Left1
-    ldata->slotRect[10] = RectF(centralRect.left() - columnWidth, centralRect.center().y(), columnWidth, centralH / 2.0);
-    ldata->slotRect[11] = RectF(centralRect.left() - columnWidth, centralRect.top(), columnWidth, centralH / 2.0);
+    // Left column: 8=Left2, 9=Left1
+    ldata->slotRect[8] = RectF(leftCorner, centralRect.center().y(), columnWidth, centralH / 2.0);
+    ldata->slotRect[9] = RectF(leftCorner, centralRect.top(), columnWidth, centralH / 2.0);
 
     for (int i = 0; i < SLOTS_COUNT; ++i) {
         const RectF& rect = ldata->slotRect[i];
         PointF origin = rect.center() - textBounds[i].center();
         // Side labels hug the central glyph instead of centering in a wide square.
-        if (i == 3 || i == 4 || i == 5 || i == 6) {
+        if (i == 2 || i == 3 || i == 4 || i == 5) {
             origin.setX(rect.left() - textBounds[i].left());
-        } else if (i == 0 || i == 9 || i == 10 || i == 11) {
+        } else if (i == 0 || i == 7 || i == 8 || i == 9) {
             origin.setX(rect.right() - textBounds[i].right());
         }
         // Top and bottom rows, including corners, share their inward ink edge.
-        if (i >= 0 && i <= 3) {
+        if (i >= 0 && i <= 2) {
             origin.setY(rect.bottom() - textBounds[i].bottom());
-        } else if (i >= 6 && i <= 9) {
+        } else if (i >= 5 && i <= 7) {
             origin.setY(rect.top() - textBounds[i].top());
         }
         for (auto& run : ldata->slotTextRuns[i]) {
